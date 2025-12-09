@@ -1,41 +1,26 @@
-const CACHE_NAME = 'finance-flow-v1';
-
-// Estrategia: Cache First, falling back to network
-// Esto asegura que la app cargue instantáneamente incluso sin internet.
+const CACHE_NAME = 'finance-flow-v3';
+const URLS_TO_CACHE = [
+  './',
+  './index.html',
+  './manifest.json',
+  'https://cdn.tailwindcss.com',
+  'https://unpkg.com/react@18/umd/react.production.min.js',
+  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+  'https://unpkg.com/@babel/standalone/babel.min.js',
+  'https://cdn-icons-png.flaticon.com/512/272/272525.png'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        './',
-        './index.html',
-        './manifest.json',
-        'https://cdn.tailwindcss.com'
-      ]);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(URLS_TO_CACHE))
   );
 });
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Si está en caché, devolverlo
-      if (response) {
-        return response;
-      }
-      // Si no, buscarlo en la red y guardarlo en caché para la próxima
-      return fetch(event.request).then((networkResponse) => {
-        // Solo cachear respuestas válidas
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
-          return networkResponse;
-        }
-
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return networkResponse;
+      return response || fetch(event.request).catch(() => {
+          // Fallback en caso de no haber internet y no estar en caché (opcional)
       });
     })
   );
