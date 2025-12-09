@@ -5,6 +5,7 @@ import { BalanceCard } from './components/BalanceCard';
 import { TransactionForm } from './components/TransactionForm';
 import { HistoryList } from './components/HistoryList';
 import { DataManagement } from './components/DataManagement';
+import { MonthlyStats } from './components/MonthlyStats';
 import { IconPiggyBank, IconTrendingUp, IconUser } from './components/Icons';
 
 function App() {
@@ -188,6 +189,11 @@ function App() {
             autoSplit={state.autoSplit}
             onToggleAutoSplit={(val) => setState(s => ({...s, autoSplit: val}))}
         />
+        
+        {/* Statistics */}
+        <div className="mt-6">
+           <MonthlyStats history={state.history} />
+        </div>
 
         {/* History */}
         <HistoryList history={state.history} />
