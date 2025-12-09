@@ -1,0 +1,5 @@
+{
+  "name": "Finance Flow",
+  "description": "A mobile-first personal finance tracker with automated 10/25/65 splitting, history tracking, and data persistence.",
+  "requestFramePermissions": []
+}
