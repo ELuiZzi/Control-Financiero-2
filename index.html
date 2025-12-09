@@ -3,6 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
     <title>Finance Flow</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -43,7 +47,20 @@
 }
 </script>
 </head>
-  <body class="bg-gray-100 text-gray-900 antialiased">
+  <body class="bg-gray-100 text-gray-900 antialiased select-none">
     <div id="root"></div>
+    <script>
+      // Registro del Service Worker para funcionamiento Offline
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+              console.log('ServiceWorker registrado con éxito:', registration.scope);
+            }, (err) => {
+              console.log('Fallo en el registro de ServiceWorker:', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
