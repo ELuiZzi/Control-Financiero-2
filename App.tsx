@@ -56,22 +56,20 @@ function App() {
 
       if (type === 'ingreso') {
         if (prev.autoSplit && target === 'auto') {
-          // 10 / 25 / 65 Split
-          ahorro += Math.round(value * 0.10 * 100) / 100;
-          personales += Math.round(value * 0.25 * 100) / 100;
-          inversion += Math.round(value * 0.65 * 100) / 100;
+          // NUEVOS PORCENTAJES: 12% Ahorro, 21% Gastos (Personales), 67% Inversión
+          ahorro += Math.round(value * 0.12 * 100) / 100;
+          personales += Math.round(value * 0.21 * 100) / 100;
+          inversion += Math.round(value * 0.67 * 100) / 100;
         } else {
           // Manual target
           if (target === 'ahorro') ahorro += value;
           else if (target === 'personales') personales += value;
           else if (target === 'inversion') inversion += value;
           else {
-             // Fallback logic if 'auto' is selected but autoSplit is false, or weird state
-             // Defaulting to auto split logic for safety or could throw error.
-             // Following original logic: it did splitting.
-             ahorro += Math.round(value * 0.10 * 100) / 100;
-             personales += Math.round(value * 0.25 * 100) / 100;
-             inversion += Math.round(value * 0.65 * 100) / 100;
+             // Fallback logic
+             ahorro += Math.round(value * 0.12 * 100) / 100;
+             personales += Math.round(value * 0.21 * 100) / 100;
+             inversion += Math.round(value * 0.67 * 100) / 100;
           }
         }
       } else {

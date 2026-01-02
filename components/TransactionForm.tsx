@@ -23,8 +23,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
     // Reset fields
     setAmount('');
     setDescription('');
-    // Smart reset: if we just added an expense, keep it on expense but reset desc.
-    // If income, reset to auto.
     if(type === 'ingreso') {
         setTarget('auto');
     }
@@ -79,7 +77,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
         </div>
       </div>
 
-      {/* Description (Conditional) */}
+      {/* Description */}
       <div className={`overflow-hidden transition-all duration-300 ${type === 'gasto' ? 'max-h-20 mb-4 opacity-100' : 'max-h-0 opacity-0'}`}>
          <input
           type="text"
@@ -102,7 +100,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
                         target === 'auto' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-gray-200 text-gray-600'
                     }`}
                 >
-                    Auto Split (10/25/65)
+                    Auto Split (12/21/67)
                 </button>
             )}
              <button
