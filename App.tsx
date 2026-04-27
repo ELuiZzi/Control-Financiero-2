@@ -63,7 +63,7 @@ function App() {
     setState(prev => {
         let newState = { ...prev };
         newState.fixedExpenses = prev.fixedExpenses.map(ex => {
-            if (today >= ex.day && ex.lastPaidMonthYear !== currentMY) {
+            if (!ex.isFloating && today >= ex.day && ex.lastPaidMonthYear !== currentMY) {
                 hasChanges = true;
                 const value = ex.value;
                 
@@ -142,24 +142,60 @@ function App() {
     });
   };
 
-  const handleAddFixedExpense = (name: string, value: number, day: number, target: TargetType, tags: string[]) => {
-      const newEx: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear: '' };
+  const handleAddFixedExpense = (name: string, value: number, day: number, target: TargetType, tags: string[], isFloating: boolean = false) => {
+      const newEx: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear: '', isFloating };
       setState(s => ({ ...s, fixedExpenses: [...s.fixedExpenses, newEx] }));
   };
+
+  const handleEditFixedExpense = (id: string, name: string, value: number, day: number, target: TargetType, tags: string[], isFloating: boolean = false) => {
+      setState(s => ({
+          ...s,
+          fixedExpenses: s.fixedExpenses.map(ex => 
+              ex.id === id ? { ...ex, name, value, day, target, tags, isFloating } : ex
+          )
+      }));
+  };
+
+  const handleProcessFloatingExpense = (id: string) => {
+      setState(prev => {
+          const expense = prev.fixedExpenses.find(e => e.id === id);
+          if (!expense) return prev;
+
+          let { ahorro, personales, negocio } = prev;
+          const value = expense.value;
+
+          if (expense.target === 'ahorro') ahorro -= value;
+          else if (expense.target === 'negocio') negocio -= value;
+          else personales -= value;
+
+          const newT: Transaction = {
+              id: generateId(),
+              date: new Date().toISOString(),
+              type: 'gasto', 
+              value, 
+              target: expense.target,
+              tags: expense.tags && expense.tags.length > 0 ? expense.tags : ['flotante'],
+              description: `[EJECUTADO] ${expense.name}`,
+              balancesSnapshot: { ahorro, personales, negocio }
+          };
+
+          return {
+              ...prev,
+              ahorro,
+              personales,
+              negocio,
+              history: [newT, ...prev.history].slice(0, 200),
+              fixedExpenses: prev.fixedExpenses.filter(e => e.id !== id)
+          };
+      });
+  };
+
+
 
   const handleDeleteFixedExpense = (id: string) => {
       setState(s => ({ ...s, fixedExpenses: s.fixedExpenses.filter(e => e.id !== id) }));
   };
 
-  const handleEditFixedExpense = (id: string, name: string, value: number, day: number, target: TargetType, tags: string[]) => {
-      setState(s => ({
-          ...s,
-          fixedExpenses: s.fixedExpenses.map(ex => 
-              // Actualizamos los datos, pero mantenemos intacto 'lastPaidMonthYear' para no cobrarle doble
-              ex.id === id ? { ...ex, name, value, day, target, tags } : ex
-          )
-      }));
-  };
 
   const total = state.ahorro + state.personales + state.negocio;
 
@@ -253,12 +289,13 @@ function App() {
         </div>
 
         {/* NIVEL 4: ADMINISTRACIÓN DE SISTEMA (Mantenimiento) */}
-        <FixedExpensesManager 
-            expenses={state.fixedExpenses}
-            onAdd={handleAddFixedExpense}
-            onEdit={handleEditFixedExpense} 
-            onDelete={handleDeleteFixedExpense}
-        />
+       <FixedExpensesManager 
+    expenses={state.fixedExpenses}
+    onAdd={handleAddFixedExpense}
+    onEdit={handleEditFixedExpense} 
+    onDelete={handleDeleteFixedExpense}
+    onProcess={handleProcessFloatingExpense}
+/>
 
         <ReconciliationTool state={state} onAdd={handleAddTransaction} />
 

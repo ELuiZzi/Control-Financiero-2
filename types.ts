@@ -26,8 +26,9 @@ export interface FixedExpense {
   value: number;
   day: number;
   target: TargetType;
+  tags: string[];
   lastPaidMonthYear: string;
-  tags: string[]; // También permitimos categorizar los gastos fijos
+  isFloating?: boolean;
 }
 
 export interface AppState extends Balances {

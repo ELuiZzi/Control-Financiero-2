@@ -7,27 +7,36 @@ interface PredictiveDashboardProps {
 }
 
 export const PredictiveDashboard: React.FC<PredictiveDashboardProps> = ({ state }) => {
+  // 1. SACAMOS LAS VARIABLES AQUÍ AFUERA
+  const today = new Date().getDate();
+  const currentMY = `${new Date().getMonth()}-${new Date().getFullYear()}`;
+
   const { availableCapital, pendingExpenses, safeToInvest } = useMemo(() => {
-    const today = new Date().getDate();
-    const currentMY = `${new Date().getMonth()}-${new Date().getFullYear()}`;
+      // Calculamos el impacto de las obligaciones (Fijas + Flotantes)
+      const pending = (state.fixedExpenses || []).reduce((acc, ex) => {
+          // REGLA 1: Si es un gasto flotante, se contabiliza SIEMPRE.
+          if (ex.isFloating) {
+              return acc + ex.value;
+          }
 
-    // Calculamos el impacto de las obligaciones pendientes
-    const pending = (state.fixedExpenses || []).reduce((acc, ex) => {
-        // Si la fecha de pago está por venir, o si ya pasó pero no hemos registrado el pago este mes
-        if (ex.day >= today && ex.lastPaidMonthYear !== currentMY) {
-            return acc + ex.value;
-        }
-        return acc;
-    }, 0);
+          // REGLA 2: Si es un gasto fijo, se contabiliza por fecha.
+          if (ex.day >= today && ex.lastPaidMonthYear !== currentMY) {
+              return acc + ex.value;
+          }
+          
+          return acc;
+      }, 0);
 
-    // Capital líquido operativo (Excluyendo la Reserva Intocable / Ahorro)
-    const liquid = state.negocio + state.personales;
-    
-    // Capital real que Lumtech puede ejecutar hoy
-    const safe = liquid - pending;
+      // El resto de tu lógica de capital disponible...
+      const available = state.personales + state.negocio; 
+      const safe = available - pending;
 
-    return { availableCapital: liquid, pendingExpenses: pending, safeToInvest: safe };
-  }, [state]);
+      return {
+          availableCapital: available,
+          pendingExpenses: pending,
+          safeToInvest: safe
+      };
+  }, [state, today, currentMY]); // 2. AHORA REACT SÍ PUEDE LEER ESTAS VARIABLES
 
   return (
     <div className="bg-gray-900 rounded-3xl p-6 shadow-2xl mb-8 relative overflow-hidden border border-gray-800 transition-all hover:border-gray-700">
