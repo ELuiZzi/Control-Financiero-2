@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0ea5e9" />
-    <meta name="description" content="Control de Finanzas Personales Offline">
+    <meta name="description" content="Bóveda de Control Lumtech">
     
-    <!-- PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/272/272525.png">
 
-    <title>Finance Flow</title>
+    <title>Finance Flow Lumtech</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -26,10 +26,7 @@
         }
       }
     </script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+    
     <style>
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -41,390 +38,22 @@
       }
       .animate-alert { animation: shake 0.5s ease-in-out infinite; }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
 </head>
 <body class="bg-gray-100 text-gray-900 antialiased select-none">
+    
     <div id="root"></div>
 
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('SW listo'))
-            .catch(err => console.log('SW error', err));
+            .then(reg => console.log('SW Operativo'))
+            .catch(err => console.log('SW Fallo', err));
         });
       }
     </script>
 
-    <script type="text/babel">
-        // --- ICONS ---
-        const IconTrendingUp = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>;
-        const IconPiggyBank = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2.5V5z" /><path d="M2 9v1c0 1.1.9 2 2 2h1" /><path d="M16 11h.01" /></svg>;
-        const IconUser = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
-        const IconHistory = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></svg>;
-        const IconDownload = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>;
-        const IconUpload = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>;
-        const IconSave = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>;
-        const IconTrash = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>;
-        const IconRefresh = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>;
-        const IconChart = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>;
-        const IconBell = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>;
-        const IconCalendar = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>;
+    <script type="module" src="/index.tsx"></script>
 
-        // --- CONSTANTS ---
-        const STORAGE_KEY = "finance_state_v3";
-        const SNAPSHOT_KEY = "finance_snapshots_v3";
-        const INITIAL_STATE = {
-          ahorro: 0,
-          personales: 0,
-          inversion: 0,
-          autoSplit: true,
-          history: [],
-          fixedExpenses: [] // { id, name, value, target, day, lastPaidMonthYear }
-        };
-
-        // --- HELPERS ---
-        const formatMoney = (val) => val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        // --- COMPONENTS ---
-
-        const BalanceCard = ({ title, amount, icon, colorClass, percentage }) => (
-          <div className={`rounded-2xl p-4 text-white shadow-lg ${colorClass} relative overflow-hidden transition-transform transform active:scale-95`}>
-              <div className="absolute right-[-10px] top-[-10px] opacity-20 transform scale-150 rotate-12">{icon}</div>
-              <div className="relative z-10 flex flex-col h-full justify-between">
-                  <div className="flex items-center space-x-2 mb-2 opacity-90">
-                      <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                          {React.cloneElement(icon, { className: 'w-4 h-4 text-white' })}
-                      </div>
-                      <span className="text-sm font-medium tracking-wide">{title}</span>
-                  </div>
-                  <div>
-                      <span className="text-2xl font-bold tracking-tight">${formatMoney(amount)}</span>
-                      {percentage > 0 && <span className="text-xs ml-2 opacity-80 font-mono">({percentage}%)</span>}
-                  </div>
-              </div>
-          </div>
-        );
-
-        const FixedExpensesList = ({ expenses, onAdd, onDelete }) => {
-            const [name, setName] = React.useState('');
-            const [val, setVal] = React.useState('');
-            const [day, setDay] = React.useState('1');
-            const [target, setTarget] = React.useState('personales');
-            const [isOpen, setIsOpen] = React.useState(false);
-
-            const now = new Date();
-            const today = now.getDate();
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                if(!name || !val) return;
-                onAdd({ id: crypto.randomUUID(), name, value: parseFloat(val), day: parseInt(day), target, lastPaidMonthYear: '' });
-                setName(''); setVal(''); setDay('1');
-            };
-
-            return (
-                <div className="mt-6">
-                    <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <div className="flex items-center gap-2 font-bold text-gray-800">
-                            <IconCalendar className="w-5 h-5 text-indigo-500" /> Gastos Fijos y Pagos
-                        </div>
-                        <span className="text-xs text-brand-600 font-bold">{isOpen ? 'Cerrar' : 'Administrar'}</span>
-                    </button>
-
-                    {isOpen && (
-                        <div className="bg-white p-5 rounded-b-2xl border-x border-b border-gray-100 -mt-2 animate-in slide-in-from-top-2 duration-200">
-                            <form onSubmit={handleSubmit} className="space-y-3 mb-6">
-                                <input type="text" placeholder="Nombre (ej. Netflix)" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm outline-none focus:border-brand-500" />
-                                <div className="flex gap-2">
-                                    <input type="number" placeholder="Monto" value={val} onChange={e => setVal(e.target.value)} className="flex-1 p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm outline-none" />
-                                    <select value={day} onChange={e => setDay(e.target.value)} className="w-24 p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm">
-                                        {[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>Día {i+1}</option>)}
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {['ahorro', 'personales', 'inversion'].map(t => (
-                                        <button key={t} type="button" onClick={() => setTarget(t)} className={`py-2 text-[10px] font-bold uppercase rounded-lg border transition-all ${target === t ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200'}`}>{t}</button>
-                                    ))}
-                                </div>
-                                <button type="submit" className="w-full bg-brand-600 text-white font-bold py-3 rounded-xl shadow-md">Agregar Gasto Fijo</button>
-                            </form>
-
-                            <div className="space-y-2">
-                                {expenses.map(ex => {
-                                    const daysLeft = ex.day - today;
-                                    let alertClass = "text-gray-400";
-                                    if(daysLeft >= 0 && daysLeft <= 3) alertClass = "text-red-500 font-bold animate-alert";
-                                    else if(daysLeft > 3 && daysLeft <= 7) alertClass = "text-orange-500 font-bold";
-
-                                    return (
-                                        <div key={ex.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                            <div className="flex-1">
-                                                <div className="text-sm font-bold text-gray-800">{ex.name} <span className="text-[10px] text-gray-400 font-normal ml-1">({ex.target})</span></div>
-                                                <div className="text-xs text-gray-500">Paga el día {ex.day} • <span className={alertClass}>{daysLeft < 0 ? 'Ya pasó' : `Faltan ${daysLeft} días`}</span></div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-sm font-black text-gray-900">${formatMoney(ex.value)}</span>
-                                                <button onClick={() => onDelete(ex.id)} className="text-red-300 hover:text-red-500"><IconTrash className="w-4 h-4" /></button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {expenses.length === 0 && <p className="text-center text-xs text-gray-400 py-4 italic">No tienes gastos fijos programados</p>}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        const MonthlyStats = ({ history }) => {
-            const [month, setMonth] = React.useState(new Date().getMonth());
-            const [year, setYear] = React.useState(new Date().getFullYear());
-
-            const stats = React.useMemo(() => {
-                let income = 0, expense = 0;
-                history.forEach(t => {
-                    const d = new Date(t.date);
-                    if (d.getMonth() === month && d.getFullYear() === year) {
-                        if (t.type === 'ingreso') income += t.value;
-                        else expense += t.value;
-                    }
-                });
-                return { income, expense, balance: income - expense };
-            }, [history, month, year]);
-
-            return (
-                <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><IconChart className="w-4 h-4 text-brand-600" /> Resumen Mensual</h3>
-                        <div className="flex gap-1">
-                            <select value={month} onChange={e => setMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 text-[10px] rounded-lg p-1">
-                                {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m, i) => <option key={i} value={i}>{m}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center divide-x divide-gray-100">
-                        <div><div className="text-[9px] text-gray-400 uppercase font-bold">Ingresos</div><div className="text-sm font-bold text-emerald-600">+${formatMoney(stats.income)}</div></div>
-                        <div><div className="text-[9px] text-gray-400 uppercase font-bold">Gastos</div><div className="text-sm font-bold text-red-500">-${formatMoney(stats.expense)}</div></div>
-                        <div><div className="text-[9px] text-gray-400 uppercase font-bold">Balance</div><div className={`text-sm font-bold ${stats.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>{stats.balance >= 0 ? '$' : '-$'}{formatMoney(Math.abs(stats.balance))}</div></div>
-                    </div>
-                </div>
-            );
-        };
-
-        const TransactionForm = ({ onAdd }) => {
-          const [amount, setAmount] = React.useState('');
-          const [type, setType] = React.useState('ingreso');
-          const [target, setTarget] = React.useState('auto');
-          const [description, setDescription] = React.useState('');
-
-          const handleSubmit = (e) => {
-            e.preventDefault();
-            const raw = parseFloat(amount);
-            if (!raw) return;
-            onAdd(raw, type, target, description);
-            setAmount(''); setDescription('');
-          };
-
-          return (
-            <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-              <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
-                <button type="button" onClick={() => {setType('ingreso'); setTarget('auto');}} className={`flex-1 py-2 text-xs font-bold rounded-lg ${type === 'ingreso' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500'}`}>Ingreso (+)</button>
-                <button type="button" onClick={() => {setType('gasto'); setTarget('personales');}} className={`flex-1 py-2 text-xs font-bold rounded-lg ${type === 'gasto' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'}`}>Gasto (-)</button>
-              </div>
-              <div className="mb-4 relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">$</span>
-                <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-gray-50 border border-gray-200 text-3xl font-black rounded-2xl py-4 pl-10 pr-4 outline-none focus:ring-2 focus:ring-brand-500" />
-              </div>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción (opcional)" className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl py-3 px-4 mb-4 outline-none" />
-              <div className="grid grid-cols-2 gap-2 mb-6">
-                  {type === 'ingreso' && <button type="button" onClick={() => setTarget('auto')} className={`py-2 px-3 rounded-xl text-[10px] font-bold border ${target === 'auto' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-gray-200 text-gray-500'}`}>Auto Split (12/21/67)</button>}
-                  <button type="button" onClick={() => setTarget('ahorro')} className={`py-2 px-3 rounded-xl text-[10px] font-bold border ${target === 'ahorro' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-200 text-gray-500'}`}>Ahorro</button>
-                  <button type="button" onClick={() => setTarget('personales')} className={`py-2 px-3 rounded-xl text-[10px] font-bold border ${target === 'personales' ? 'bg-slate-50 border-slate-500 text-slate-700' : 'bg-white border-gray-200 text-gray-500'}`}>Personales</button>
-                  <button type="button" onClick={() => setTarget('inversion')} className={`py-2 px-3 rounded-xl text-[10px] font-bold border ${target === 'inversion' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-200 text-gray-500'}`}>Inversión</button>
-              </div>
-              <button type="submit" disabled={!amount} className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-transform disabled:opacity-50">REGISTRAR</button>
-            </form>
-          );
-        };
-
-        const DataManagement = ({ state, snapshots, onImportFile, onReset }) => {
-          const handleExport = () => {
-            const fileName = `finance_backup_${new Date().toISOString().split('T')[0]}.json`;
-            const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = fileName; a.click();
-            URL.revokeObjectURL(url);
-          };
-
-          return (
-            <div className="mt-10 mb-20 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-                <h3 className="text-sm font-bold text-gray-900 mb-4">Mantenimiento de Datos</h3>
-                <div className="grid grid-cols-1 gap-3">
-                    <button onClick={handleExport} className="flex items-center justify-center gap-2 p-4 bg-gray-900 text-white rounded-2xl font-bold text-sm"><IconDownload className="w-4 h-4" /> Guardar Backup Local</button>
-                    <label className="flex items-center justify-center gap-2 p-4 border border-gray-200 rounded-2xl font-bold text-sm cursor-pointer"><IconUpload className="w-4 h-4" /> Importar Backup
-                        <input type="file" accept="application/json" onChange={e => e.target.files && onImportFile(e.target.files[0])} className="hidden" />
-                    </label>
-                    <button onClick={() => confirm("¿Borrar todo?") && onReset()} className="text-red-500 text-xs mt-4">Borrar todos los datos locales</button>
-                </div>
-            </div>
-          );
-        };
-
-        // --- MAIN APP ---
-        function App() {
-          const [state, setState] = React.useState(() => {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            return raw ? JSON.parse(raw) : INITIAL_STATE;
-          });
-
-          // Guardar estado
-          React.useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [state]);
-
-          // Lógica de Gastos Fijos (Autoprocesamiento)
-          React.useEffect(() => {
-            const now = new Date();
-            const currentMY = `${now.getMonth()}-${now.getFullYear()}`;
-            const today = now.getDate();
-            
-            let hasChanges = false;
-            let newState = { ...state };
-
-            newState.fixedExpenses = state.fixedExpenses.map(ex => {
-                // Si el día de pago ya llegó o pasó este mes, y no se ha pagado aún
-                if (today >= ex.day && ex.lastPaidMonthYear !== currentMY) {
-                    hasChanges = true;
-                    // Registrar la transacción automáticamente
-                    const value = ex.value;
-                    if (ex.target === 'ahorro') newState.ahorro -= value;
-                    else if (ex.target === 'inversion') newState.inversion -= value;
-                    else newState.personales -= value;
-
-                    const newT = {
-                        id: crypto.randomUUID(),
-                        date: new Date().toISOString(),
-                        type: 'gasto', value, target: ex.target,
-                        description: `[FIJO] ${ex.name}`,
-                    };
-                    newState.history = [newT, ...newState.history].slice(0, 200);
-                    
-                    return { ...ex, lastPaidMonthYear: currentMY };
-                }
-                return ex;
-            });
-
-            if (hasChanges) {
-                setState(newState);
-                // Notificar visualmente si es posible
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification("Pago Procesado", { body: `Se ha descontado un pago fijo programado.` });
-                }
-            }
-          }, []);
-
-          // Solicitar permiso notificaciones
-          React.useEffect(() => {
-            if ("Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission();
-            }
-          }, []);
-
-          const handleAddTransaction = (amount, type, target, description) => {
-            setState(prev => {
-              let { ahorro, personales, inversion } = prev;
-              const value = Math.round(amount * 100) / 100;
-
-              if (type === 'ingreso') {
-                if (prev.autoSplit && target === 'auto') {
-                  // NUEVOS PORCENTAJES: 12% Ahorro, 21% Gastos (Personales), 67% Inversión
-                  ahorro += Math.round(value * 0.12 * 100) / 100;
-                  personales += Math.round(value * 0.21 * 100) / 100;
-                  inversion += Math.round(value * 0.67 * 100) / 100;
-                } else {
-                  if (target === 'ahorro') ahorro += value;
-                  else if (target === 'personales') personales += value;
-                  else if (target === 'inversion') inversion += value;
-                }
-              } else {
-                if (target === 'ahorro') ahorro -= value;
-                else if (target === 'inversion') inversion -= value;
-                else personales -= value;
-              }
-
-              const newT = { id: crypto.randomUUID(), date: new Date().toISOString(), type, value, target, description: description.trim() || undefined };
-              return { ...prev, ahorro, personales, inversion, history: [newT, ...prev.history].slice(0, 200) };
-            });
-          };
-
-          const total = state.ahorro + state.personales + state.inversion;
-
-          return (
-            <div className="min-h-screen pb-10 max-w-md mx-auto px-4 py-8">
-                <header className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">FinanceFlow</h1>
-                        <p className="text-[10px] font-bold text-brand-600 uppercase tracking-widest">Estado de Cuenta Offline</p>
-                    </div>
-                    <div className="bg-brand-100 p-2 rounded-xl"><IconPiggyBank className="text-brand-600 w-6 h-6" /></div>
-                </header>
-
-                <div className="mb-6 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 text-center">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Patrimonio Neto</span>
-                    <div className="text-5xl font-black text-gray-900 mt-1 tracking-tighter">${formatMoney(total)}</div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 mb-8">
-                    <BalanceCard title="Ahorro" amount={state.ahorro} icon={<IconPiggyBank />} colorClass="bg-emerald-600" percentage={total > 0 ? Math.round((state.ahorro/total)*100) : 0} />
-                    <BalanceCard title="Gastos" amount={state.personales} icon={<IconUser />} colorClass="bg-slate-800" percentage={total > 0 ? Math.round((state.personales/total)*100) : 0} />
-                    <BalanceCard title="Inversión" amount={state.inversion} icon={<IconTrendingUp />} colorClass="bg-indigo-600" percentage={total > 0 ? Math.round((state.inversion/total)*100) : 0} />
-                </div>
-
-                <TransactionForm onAdd={handleAddTransaction} />
-                
-                <FixedExpensesList 
-                    expenses={state.fixedExpenses} 
-                    onAdd={ex => setState(s => ({...s, fixedExpenses: [ex, ...s.fixedExpenses]}))}
-                    onDelete={id => setState(s => ({...s, fixedExpenses: s.fixedExpenses.filter(e => e.id !== id)}))}
-                />
-
-                <div className="mt-6"><MonthlyStats history={state.history} /></div>
-
-                <div className="mt-8">
-                    <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2"><IconHistory className="w-4 h-4" /> Últimos Movimientos</h3>
-                    <div className="space-y-2">
-                        {state.history.map(t => (
-                            <div key={t.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-gray-100">
-                                <div>
-                                    <div className="text-xs font-black text-gray-400 uppercase">{t.target}</div>
-                                    <div className="text-sm font-bold text-gray-800">{t.description || (t.type === 'ingreso' ? 'Ingreso Manual' : 'Gasto Manual')}</div>
-                                </div>
-                                <div className={`font-black ${t.type === 'ingreso' ? 'text-emerald-600' : 'text-red-500'}`}>{t.type === 'ingreso' ? '+' : '-'}${formatMoney(t.value)}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <DataManagement state={state} onImportFile={f => {
-                    const reader = new FileReader();
-                    reader.onload = e => setState(JSON.parse(e.target.result));
-                    reader.readAsText(f);
-                }} onReset={() => setState(INITIAL_STATE)} />
-            </div>
-          );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
 </body>
 </html>

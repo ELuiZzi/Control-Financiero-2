@@ -1,11 +1,12 @@
 export type TransactionType = 'ingreso' | 'gasto';
 
-export type TargetType = 'auto' | 'ahorro' | 'personales' | 'inversion';
+// Reestructuración de destinos de capital
+export type TargetType = 'auto' | 'ahorro' | 'personales' | 'negocio';
 
 export interface Balances {
   ahorro: number;
   personales: number;
-  inversion: number;
+  negocio: number; // Reemplaza a 'inversion'
 }
 
 export interface Transaction {
@@ -14,13 +15,25 @@ export interface Transaction {
   type: TransactionType;
   value: number;
   target: TargetType;
+  tags: string[]; // Nuevo: Vector para sub-categorías (ej. ['suscripcion', 'software'])
   description?: string;
-  balancesSnapshot: Balances; // The balances *after* this transaction
+  balancesSnapshot: Balances; 
+}
+
+export interface FixedExpense {
+  id: string;
+  name: string;
+  value: number;
+  day: number;
+  target: TargetType;
+  lastPaidMonthYear: string;
+  tags: string[]; // También permitimos categorizar los gastos fijos
 }
 
 export interface AppState extends Balances {
   autoSplit: boolean;
   history: Transaction[];
+  fixedExpenses: FixedExpense[]; // Formalizamos los gastos fijos en la interfaz principal
 }
 
 export interface Snapshot {
