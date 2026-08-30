@@ -1,45 +1,68 @@
 import localforage from 'localforage';
-import { AppState, Snapshot } from './types';
-import { STORAGE_KEY, SNAPSHOT_KEY, INITIAL_STATE } from './constants';
+import CryptoJS from 'crypto-js';
+import { AppState } from './types';
+import { STORAGE_KEY, INITIAL_STATE } from './constants';
 
-// Configuración de la base de datos local para la PWA
+const SECRET_KEY = 'finance_flow_secure_key_v1'; // Clave de encriptación interna
+
 localforage.config({
     name: 'FinanceFlowDB',
     storeName: 'finance_store',
     description: 'Persistencia de transacciones y estados financieros'
 });
 
+const encryptData = (data: any): string => {
+    return CryptoJS.AES.encrypt(JSON.stringify(data), SECRET_KEY).toString();
+};
+
+const decryptData = (ciphertext: string): any => {
+    try {
+        const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
+        const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+        return JSON.parse(decryptedData);
+    } catch (e) {
+        console.error("Error descifrando los datos:", e);
+        return null;
+    }
+};
+
 export const DB = {
-    // Carga el estado principal
     loadState: async (): Promise<AppState> => {
         try {
-            const state = await localforage.getItem<AppState>(STORAGE_KEY);
+            const encryptedState = await localforage.getItem<string>(STORAGE_KEY);
+            if (!encryptedState) return INITIAL_STATE;
+            
+            // Retrocompatibilidad: Si el dato no es un string (no está encriptado todavía), lo tratamos normal
+            if (typeof encryptedState !== 'string') {
+                 // Si venía sin encriptar, lo guardaremos encriptado en el próximo ciclo
+                 return encryptedState as unknown as AppState;
+            }
+
+            const state = decryptData(encryptedState);
             return state || INITIAL_STATE;
         } catch (error) {
             console.error("Error crítico leyendo la base de datos:", error);
-            return INITIAL_STATE; // Fallback de seguridad
+            return INITIAL_STATE;
         }
     },
 
-    // Guarda el estado principal
     saveState: async (state: AppState): Promise<void> => {
         try {
-            await localforage.setItem(STORAGE_KEY, state);
+            const encryptedState = encryptData(state);
+            await localforage.setItem(STORAGE_KEY, encryptedState);
         } catch (error) {
             console.error("Error guardando el flujo de capital:", error);
         }
     },
 
-    // Migración de datos (De localStorage a IndexedDB)
     migrateFromLegacyStorage: async (): Promise<boolean> => {
         const legacyData = localStorage.getItem(STORAGE_KEY);
         if (legacyData) {
             try {
-                // Aquí deberíamos hacer un mapeo para convertir 'inversion' a 'negocio' en el historial viejo
                 const parsedData = JSON.parse(legacyData);
-                // NOTA: Implementaremos la lógica de conversión en el siguiente paso
-                await localforage.setItem(STORAGE_KEY, parsedData);
-                localStorage.removeItem(STORAGE_KEY); // Limpiamos el rastro viejo
+                const encryptedState = encryptData(parsedData);
+                await localforage.setItem(STORAGE_KEY, encryptedState);
+                localStorage.removeItem(STORAGE_KEY);
                 return true;
             } catch (e) {
                 return false;

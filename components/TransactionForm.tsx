@@ -11,7 +11,7 @@ interface TransactionFormProps {
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSplit, onToggleAutoSplit, history }) => {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>('ingreso');
-  const [target, setTarget] = useState<TargetType>('auto');
+  const [target, setTarget] = useState<TargetType>('auto_producto');
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -76,14 +76,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
     setAmount('');
     setDescription('');
     setSelectedTags([]);
-    if(type === 'ingreso') setTarget('auto');
+    if(type === 'ingreso') setTarget('auto_producto');
   };
 
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
     setSelectedTags([]);
-    if (newType === 'gasto' && target === 'auto') setTarget('personales');
-    else if (newType === 'ingreso') setTarget('auto');
+    if (newType === 'gasto' && target.startsWith('auto')) setTarget('personales');
+    else if (newType === 'ingreso') setTarget('auto_producto');
   };
 
   const handleTargetChange = (newTarget: TargetType) => {
@@ -108,7 +108,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
         <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest ml-1">Centro de Costos</label>
         <div className="grid grid-cols-2 gap-2">
             {type === 'ingreso' && (
-                <button type="button" onClick={() => handleTargetChange('auto')} className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${target === 'auto' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-gray-200 text-gray-600'}`}>Auto Split</button>
+                <>
+                  <button type="button" onClick={() => handleTargetChange('auto_producto')} className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${target === 'auto_producto' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-gray-200 text-gray-600'}`}>Split (Prod)</button>
+                  <button type="button" onClick={() => handleTargetChange('auto_servicio')} className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${target === 'auto_servicio' ? 'bg-purple-50 border-purple-500 text-purple-700' : 'bg-white border-gray-200 text-gray-600'}`}>Split (Serv)</button>
+                </>
             )}
              <button type="button" onClick={() => handleTargetChange('ahorro')} className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${target === 'ahorro' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-200 text-gray-600'}`}>Reserva</button>
             <button type="button" onClick={() => handleTargetChange('personales')} className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${target === 'personales' ? 'bg-slate-50 border-slate-500 text-slate-700' : 'bg-white border-gray-200 text-gray-600'}`}>Personales</button>

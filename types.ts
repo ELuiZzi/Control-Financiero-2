@@ -1,7 +1,7 @@
 export type TransactionType = 'ingreso' | 'gasto';
 
 // Reestructuración de destinos de capital
-export type TargetType = 'auto' | 'ahorro' | 'personales' | 'negocio';
+export type TargetType = 'auto' | 'auto_producto' | 'auto_servicio' | 'ahorro' | 'personales' | 'negocio';
 
 export interface Balances {
   ahorro: number;
@@ -31,10 +31,22 @@ export interface FixedExpense {
   isFloating?: boolean;
 }
 
+export interface SplitPercentages {
+  ahorro: number;
+  personales: number;
+  negocio: number;
+}
+
+export interface SplitConfig {
+  producto: SplitPercentages;
+  servicio: SplitPercentages;
+}
+
 export interface AppState extends Balances {
   autoSplit: boolean;
   history: Transaction[];
-  fixedExpenses: FixedExpense[]; // Formalizamos los gastos fijos en la interfaz principal
+  fixedExpenses: FixedExpense[];
+  splitConfig?: SplitConfig; // Opcional por compatibilidad hacia atrás
 }
 
 export interface Snapshot {

@@ -9,5 +9,9 @@ export const INITIAL_STATE: AppState = {
   negocio: 948.19, // <- Eliminamos 'inversion'
   autoSplit: true,
   history: [],
-  fixedExpenses: []
+  fixedExpenses: [],
+  splitConfig: {
+    producto: { ahorro: 12, personales: 21, negocio: 67 },
+    servicio: { ahorro: 10, personales: 80, negocio: 10 }
+  }
 };

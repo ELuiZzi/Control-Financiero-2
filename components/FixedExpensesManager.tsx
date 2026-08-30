@@ -11,7 +11,6 @@ interface FixedExpensesManagerProps {
 }
 
 export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expenses, onAdd, onEdit, onDelete, onProcess }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [val, setVal] = useState('');
   const [day, setDay] = useState('1');
@@ -46,8 +45,6 @@ export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expe
       setTarget(ex.target);
       setTagsInput(ex.tags ? ex.tags.join(', ') : '');
       setIsFloating(!!ex.isFloating);
-      if (!isOpen) setIsOpen(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
@@ -56,20 +53,8 @@ export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expe
   };
 
   return (
-    <div className="mt-8 mb-6">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-5 bg-white rounded-3xl shadow-sm border border-gray-100 transition-all active:scale-[0.99]">
-        <div className="flex items-center gap-3 font-extrabold text-gray-900 tracking-tight">
-            <div className={`p-2 rounded-xl transition-colors ${editingId ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                <IconCalendar className={`w-5 h-5 ${editingId ? 'text-orange-600' : 'text-gray-700'}`} />
-            </div>
-            Gestión de Fugas y Flotantes
-        </div>
-        <span className="text-xs text-blue-600 font-bold uppercase tracking-wider">{isOpen ? 'Ocultar' : 'Administrar'}</span>
-      </button>
-
-      {isOpen && (
-        <div className="bg-white p-6 rounded-b-3xl border-x border-b border-gray-100 -mt-4 pt-8 animate-in slide-in-from-top-4 duration-300">
-            <form onSubmit={handleSubmit} className={`space-y-4 mb-8 p-4 rounded-2xl transition-all ${editingId ? 'bg-orange-50 border border-orange-200' : ''}`}>
+    <div className="bg-white">
+        <form onSubmit={handleSubmit} className={`space-y-4 mb-8 p-4 rounded-2xl transition-all ${editingId ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50 border border-gray-100'}`}>
                 
                 <div className="flex items-center gap-3 mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl cursor-pointer transition-colors hover:bg-indigo-100" onClick={() => setIsFloating(!isFloating)}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${isFloating ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>
@@ -157,8 +142,6 @@ export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expe
                     );
                 })}
             </div>
-        </div>
-      )}
     </div>
   );
 };
