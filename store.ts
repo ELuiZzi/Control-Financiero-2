@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { AppState, Transaction, TransactionType, TargetType, FixedExpense } from './types';
+import { AppState, Balances, Transaction, TransactionType, TargetType, FixedExpense } from './types';
 import { INITIAL_STATE } from './constants';
 import { DB } from './db';
+import { addBalances, getDueCharges, monthKey, previousMonthKey, roundMoney, splitAmount } from './finance';
 
 interface Actions {
   setInitialState: (state: AppState) => void;
@@ -26,6 +27,21 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
+// Efecto (con signo) de un movimiento sobre cada cuenta.
+const getDelta = (type: TransactionType, target: TargetType, value: number, splitConfig: AppState['splitConfig']): Balances => {
+  if (type === 'ingreso' && (target === 'ahorro' || target === 'personales' || target === 'negocio')) {
+    return { ahorro: 0, personales: 0, negocio: 0, [target]: value };
+  }
+  if (type === 'ingreso') {
+    const cfg = target === 'auto_servicio'
+      ? splitConfig?.servicio || INITIAL_STATE.splitConfig!.servicio
+      : splitConfig?.producto || INITIAL_STATE.splitConfig!.producto;
+    return splitAmount(value, cfg);
+  }
+  const account = target === 'ahorro' || target === 'negocio' ? target : 'personales';
+  return { ahorro: 0, personales: 0, negocio: 0, [account]: -value };
+};
+
 export const useStore = create<StoreState>((set, get) => ({
   ...INITIAL_STATE,
 
@@ -38,37 +54,8 @@ export const useStore = create<StoreState>((set, get) => ({
   }),
 
   addTransaction: (amount, type, target, description, tags = []) => set((state) => {
-    let { ahorro, personales, negocio } = state;
-    const value = Math.round(amount * 100) / 100;
-
-    if (type === 'ingreso') {
-      if (target === 'auto' || target === 'auto_producto') {
-        const cfg = state.splitConfig?.producto || { ahorro: 12, personales: 21, negocio: 67 };
-        ahorro += Math.round(value * (cfg.ahorro / 100) * 100) / 100;
-        personales += Math.round(value * (cfg.personales / 100) * 100) / 100;
-        negocio += Math.round(value * (cfg.negocio / 100) * 100) / 100;
-      } else if (target === 'auto_servicio') {
-        const cfg = state.splitConfig?.servicio || { ahorro: 10, personales: 80, negocio: 10 };
-        ahorro += Math.round(value * (cfg.ahorro / 100) * 100) / 100;
-        personales += Math.round(value * (cfg.personales / 100) * 100) / 100;
-        negocio += Math.round(value * (cfg.negocio / 100) * 100) / 100;
-      } else {
-        if (target === 'ahorro') ahorro += value;
-        else if (target === 'personales') personales += value;
-        else if (target === 'negocio') negocio += value;
-        else {
-          const cfg = state.splitConfig?.producto || { ahorro: 12, personales: 21, negocio: 67 };
-          ahorro += Math.round(value * (cfg.ahorro / 100) * 100) / 100;
-          personales += Math.round(value * (cfg.personales / 100) * 100) / 100;
-          negocio += Math.round(value * (cfg.negocio / 100) * 100) / 100;
-        }
-      }
-    } else {
-      if (target === 'ahorro') ahorro -= value;
-      else if (target === 'personales') personales -= value;
-      else if (target === 'negocio') negocio -= value;
-      else personales -= value; 
-    }
+    const value = roundMoney(amount);
+    const { ahorro, personales, negocio } = addBalances(state, getDelta(type, target, value, state.splitConfig));
 
     const newTransaction: Transaction = {
       id: generateId(),
@@ -93,7 +80,9 @@ export const useStore = create<StoreState>((set, get) => ({
   }),
 
   addFixedExpense: (name, value, day, target, tags, isFloating = false) => set((state) => {
-    const newEx: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear: '', isFloating };
+    // El primer mes cobrable es el actual: se marca el anterior como pagado.
+    const lastPaidMonthYear = isFloating ? '' : previousMonthKey(new Date());
+    const newEx: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear, isFloating };
     const newState = { fixedExpenses: [...state.fixedExpenses, newEx] };
     DB.saveState({ ...state, ...newState });
     return newState;
@@ -102,7 +91,11 @@ export const useStore = create<StoreState>((set, get) => ({
   editFixedExpense: (id, name, value, day, target, tags, isFloating = false) => set((state) => {
     const newState = {
       fixedExpenses: state.fixedExpenses.map(ex => 
-        ex.id === id ? { ...ex, name, value, day, target, tags, isFloating } : ex
+        ex.id !== id ? ex : {
+          ...ex, name, value, day, target, tags, isFloating,
+          // Un flotante convertido en fijo empieza a cobrarse este mes, sin meses atrasados.
+          lastPaidMonthYear: ex.isFloating && !isFloating ? previousMonthKey(new Date()) : ex.lastPaidMonthYear
+        }
       )
     };
     DB.saveState({ ...state, ...newState });
@@ -119,12 +112,8 @@ export const useStore = create<StoreState>((set, get) => ({
     const expense = state.fixedExpenses.find(e => e.id === id);
     if (!expense) return state;
 
-    let { ahorro, personales, negocio } = state;
     const value = expense.value;
-
-    if (expense.target === 'ahorro') ahorro -= value;
-    else if (expense.target === 'negocio') negocio -= value;
-    else personales -= value;
+    const { ahorro, personales, negocio } = addBalances(state, getDelta('gasto', expense.target, value, state.splitConfig));
 
     const newT: Transaction = {
       id: generateId(),
@@ -153,107 +142,56 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!state.fixedExpenses || state.fixedExpenses.length === 0) return state;
 
     const now = new Date();
-    const currentMY = `${now.getMonth()}-${now.getFullYear()}`;
-    const today = now.getDate();
-    
-    let hasChanges = false;
-    let newAhorro = state.ahorro;
-    let newPersonales = state.personales;
-    let newNegocio = state.negocio;
+    const charges = getDueCharges(state.fixedExpenses, now);
+    if (charges.length === 0) return state;
+
+    const currentMY = monthKey(now.getFullYear(), now.getMonth());
+    let balances: Balances = { ahorro: state.ahorro, personales: state.personales, negocio: state.negocio };
     let newHistory = [...state.history];
+    const paidMonths: Record<string, string> = {};
 
-    const newFixedExpenses = state.fixedExpenses.map(ex => {
-      if (!ex.isFloating && today >= ex.day && ex.lastPaidMonthYear !== currentMY) {
-        hasChanges = true;
-        const value = ex.value;
-        
-        if (ex.target === 'ahorro') newAhorro -= value;
-        else if (ex.target === 'negocio') newNegocio -= value;
-        else newPersonales -= value;
+    // Se aplican en orden cronológico para que cada balancesSnapshot sea consistente.
+    for (const { expense: ex, year, month, date } of charges) {
+      const paidMY = monthKey(year, month);
+      balances = addBalances(balances, getDelta('gasto', ex.target, ex.value, state.splitConfig));
 
-        const newT: Transaction = {
-          id: generateId(),
-          date: new Date().toISOString(),
-          type: 'gasto', 
-          value, 
-          target: ex.target,
-          tags: ex.tags && ex.tags.length > 0 ? ex.tags : ['gasto_fijo'],
-          description: `[FIJO] ${ex.name}`,
-          balancesSnapshot: { ahorro: newAhorro, personales: newPersonales, negocio: newNegocio }
-        };
-        newHistory = [newT, ...newHistory];
-        
-        return { ...ex, lastPaidMonthYear: currentMY };
-      }
-      return ex;
-    });
-
-    if (hasChanges) {
-      const newState = {
-        ahorro: newAhorro,
-        personales: newPersonales,
-        negocio: newNegocio,
-        history: newHistory,
-        fixedExpenses: newFixedExpenses
+      const newT: Transaction = {
+        id: generateId(),
+        date: date.toISOString(),
+        type: 'gasto',
+        value: ex.value,
+        target: ex.target,
+        tags: ex.tags && ex.tags.length > 0 ? ex.tags : ['gasto_fijo'],
+        description: paidMY === currentMY ? `[FIJO] ${ex.name}` : `[FIJO] ${ex.name} (atrasado ${month + 1}/${year})`,
+        balancesSnapshot: balances
       };
-      DB.saveState({ ...state, ...newState });
-      return newState;
+      newHistory = [newT, ...newHistory];
+      paidMonths[ex.id] = paidMY;
     }
-    return state;
+
+    const newState = {
+      ...balances,
+      history: newHistory,
+      fixedExpenses: state.fixedExpenses.map(ex =>
+        paidMonths[ex.id] ? { ...ex, lastPaidMonthYear: paidMonths[ex.id] } : ex
+      )
+    };
+    DB.saveState({ ...state, ...newState });
+    return newState;
   }),
 
   undoLastTransaction: () => set((state) => {
     if (state.history.length === 0) return state;
 
     const last = state.history[0];
-    
-    let newAhorro = state.ahorro;
-    let newPersonales = state.personales;
-    let newNegocio = state.negocio;
+    const prevSnapshot = state.history[1]?.balancesSnapshot;
+    const balances = prevSnapshot
+      ? { ahorro: prevSnapshot.ahorro, personales: prevSnapshot.personales, negocio: prevSnapshot.negocio }
+      : addBalances(state, getDelta(last.type, last.target, last.value, state.splitConfig), -1);
 
-    if (state.history.length > 1) {
-        const prevBalances = state.history[1].balancesSnapshot;
-        newAhorro = prevBalances.ahorro;
-        newPersonales = prevBalances.personales;
-        newNegocio = prevBalances.negocio;
-    } else {
-        const value = last.value;
-        if (last.type === 'ingreso') {
-            if (last.target === 'auto' || last.target === 'auto_producto') {
-                const cfg = state.splitConfig?.producto || { ahorro: 12, personales: 21, negocio: 67 };
-                newAhorro -= Math.round(value * (cfg.ahorro / 100) * 100) / 100;
-                newPersonales -= Math.round(value * (cfg.personales / 100) * 100) / 100;
-                newNegocio -= Math.round(value * (cfg.negocio / 100) * 100) / 100;
-            } else if (last.target === 'auto_servicio') {
-                const cfg = state.splitConfig?.servicio || { ahorro: 10, personales: 80, negocio: 10 };
-                newAhorro -= Math.round(value * (cfg.ahorro / 100) * 100) / 100;
-                newPersonales -= Math.round(value * (cfg.personales / 100) * 100) / 100;
-                newNegocio -= Math.round(value * (cfg.negocio / 100) * 100) / 100;
-            } else {
-                if (last.target === 'ahorro') newAhorro -= value;
-                else if (last.target === 'personales') newPersonales -= value;
-                else if (last.target === 'negocio') newNegocio -= value;
-                else {
-                    const cfg = state.splitConfig?.producto || { ahorro: 12, personales: 21, negocio: 67 };
-                    newAhorro -= Math.round(value * (cfg.ahorro / 100) * 100) / 100;
-                    newPersonales -= Math.round(value * (cfg.personales / 100) * 100) / 100;
-                    newNegocio -= Math.round(value * (cfg.negocio / 100) * 100) / 100;
-                }
-            }
-        } else {
-            if (last.target === 'ahorro') newAhorro += value;
-            else if (last.target === 'personales') newPersonales += value;
-            else if (last.target === 'negocio') newNegocio += value;
-            else newPersonales += value;
-        }
-    }
-
-    const newHistory = state.history.slice(1);
     const newState = {
-        ahorro: newAhorro,
-        personales: newPersonales,
-        negocio: newNegocio,
-        history: newHistory
+        ...balances,
+        history: state.history.slice(1)
     };
     DB.saveState({ ...state, ...newState });
     return newState;

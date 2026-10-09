@@ -13,3 +13,12 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Solo en producción: en desarrollo el SW cachearía los módulos de Vite
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+      .then(() => console.log('SW Operativo'))
+      .catch(err => console.log('SW Fallo', err));
+  });
+}

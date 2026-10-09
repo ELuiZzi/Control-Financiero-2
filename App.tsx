@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Snapshot, TransactionType, TargetType } from './types';
-import { SNAPSHOT_KEY, INITIAL_STATE } from './constants';
+import { INITIAL_STATE } from './constants';
 import { DB } from './db';
 import { useStore } from './store';
 import { BalanceCard } from './components/BalanceCard';
@@ -31,12 +31,7 @@ function App() {
   // Derive state for components that need the AppState object
   const state = { ahorro, personales, negocio, autoSplit, history, fixedExpenses };
 
-  const [snapshots, setSnapshots] = useState<Snapshot[]>(() => {
-    try {
-      const raw = localStorage.getItem(SNAPSHOT_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
-  });
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -56,6 +51,7 @@ function App() {
       loadedState.fixedExpenses = loadedState.fixedExpenses || [];
       
       setInitialState(loadedState);
+      setSnapshots(await DB.loadSnapshots());
       setIsLoading(false);
     };
     initData();
@@ -66,6 +62,11 @@ function App() {
       processFixedExpensesForToday();
     }
   }, [isLoading, processFixedExpensesForToday]);
+
+  // Persistir los puntos de restauración (solo después de la carga inicial para no sobrescribirlos)
+  useEffect(() => {
+    if (!isLoading) DB.saveSnapshots(snapshots);
+  }, [snapshots, isLoading]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center font-black text-brand-600">Inicializando Bóveda...</div>;
@@ -78,7 +79,10 @@ function App() {
     setSnapshots(prev => [newSnap, ...prev].slice(0, 50));
   };
   
-  const importSnapshot = (snap: Snapshot) => setInitialState(snap.state);
+  const importSnapshot = (snap: Snapshot) => {
+    setInitialState(snap.state);
+    DB.saveState(useStore.getState());
+  };
   
   const deleteSnapshot = (id: string) => setSnapshots(prev => prev.filter(s => s.id !== id));
 

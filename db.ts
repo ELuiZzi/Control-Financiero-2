@@ -1,7 +1,7 @@
 import localforage from 'localforage';
 import CryptoJS from 'crypto-js';
-import { AppState } from './types';
-import { STORAGE_KEY, INITIAL_STATE } from './constants';
+import { AppState, Snapshot } from './types';
+import { STORAGE_KEY, SNAPSHOT_KEY, INITIAL_STATE } from './constants';
 
 const SECRET_KEY = 'finance_flow_secure_key_v1'; // Clave de encriptación interna
 
@@ -52,6 +52,29 @@ export const DB = {
             await localforage.setItem(STORAGE_KEY, encryptedState);
         } catch (error) {
             console.error("Error guardando el flujo de capital:", error);
+        }
+    },
+
+    loadSnapshots: async (): Promise<Snapshot[]> => {
+        try {
+            const encrypted = await localforage.getItem<string>(SNAPSHOT_KEY);
+            if (encrypted) return decryptData(encrypted) || [];
+
+            // Retrocompatibilidad: versiones anteriores solo leían de localStorage
+            const legacy = localStorage.getItem(SNAPSHOT_KEY);
+            return legacy ? JSON.parse(legacy) : [];
+        } catch (error) {
+            console.error("Error leyendo los puntos de restauración:", error);
+            return [];
+        }
+    },
+
+    saveSnapshots: async (snapshots: Snapshot[]): Promise<void> => {
+        try {
+            await localforage.setItem(SNAPSHOT_KEY, encryptData(snapshots));
+            localStorage.removeItem(SNAPSHOT_KEY);
+        } catch (error) {
+            console.error("Error guardando los puntos de restauración:", error);
         }
     },
 
