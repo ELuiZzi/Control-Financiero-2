@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { AppState } from '../types';
 import { IconTrendingUp } from './Icons'; 
+import { effectiveDueDay } from '../finance';
 
 interface PredictiveDashboardProps {
   state: AppState;
@@ -8,8 +9,9 @@ interface PredictiveDashboardProps {
 
 export const PredictiveDashboard: React.FC<PredictiveDashboardProps> = ({ state }) => {
   // 1. SACAMOS LAS VARIABLES AQUÍ AFUERA
-  const today = new Date().getDate();
-  const currentMY = `${new Date().getMonth()}-${new Date().getFullYear()}`;
+  const now = new Date();
+  const today = now.getDate();
+  const currentMY = `${now.getMonth()}-${now.getFullYear()}`;
 
   const { availableCapital, pendingExpenses, safeToInvest } = useMemo(() => {
       // Calculamos el impacto de las obligaciones (Fijas + Flotantes)
@@ -20,7 +22,7 @@ export const PredictiveDashboard: React.FC<PredictiveDashboardProps> = ({ state 
           }
 
           // REGLA 2: Si es un gasto fijo, se contabiliza por fecha.
-          if (ex.day >= today && ex.lastPaidMonthYear !== currentMY) {
+          if (effectiveDueDay(ex.day, now.getFullYear(), now.getMonth()) >= today && ex.lastPaidMonthYear !== currentMY) {
               return acc + ex.value;
           }
           

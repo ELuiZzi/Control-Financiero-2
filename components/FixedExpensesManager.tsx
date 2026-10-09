@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FixedExpense, TargetType } from '../types';
 import { IconCalendar, IconTrash, IconEdit, IconCheck } from './Icons';
+import { effectiveDueDay } from '../finance';
 
 interface FixedExpensesManagerProps {
   expenses: FixedExpense[];
@@ -102,7 +103,7 @@ export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expe
 
             <div className="space-y-3">
                 {expenses.map(ex => {
-                    const daysLeft = ex.day - today;
+                    const daysLeft = effectiveDueDay(ex.day, now.getFullYear(), now.getMonth()) - today;
                     let alertClass = "text-emerald-500 bg-emerald-50";
                     let statusText = `Faltan ${daysLeft} días`;
 
