@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { AppState, Balances, Transaction, TransactionType, TargetType, FixedExpense } from './types';
-import { INITIAL_STATE } from './constants';
+import { INITIAL_STATE, EMPTY_STATE } from './constants';
 import { DB } from './db';
 import { addBalances, getDueCharges, monthKey, previousMonthKey, roundMoney, splitAmount } from './finance';
+import { generateId } from './utils';
 
 interface Actions {
   setInitialState: (state: AppState) => void;
-  toggleAutoSplit: (val: boolean) => void;
   addTransaction: (amount: number, type: TransactionType, target: TargetType, description: string, tags?: string[]) => void;
   addFixedExpense: (name: string, value: number, day: number, target: TargetType, tags: string[], isFloating?: boolean) => void;
   editFixedExpense: (id: string, name: string, value: number, day: number, target: TargetType, tags: string[], isFloating?: boolean) => void;
@@ -19,13 +19,6 @@ interface Actions {
 }
 
 type StoreState = AppState & Actions;
-
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    try { return crypto.randomUUID(); } catch (e) {}
-  }
-  return Date.now().toString(36) + Math.random().toString(36).substring(2);
-};
 
 // Efecto (con signo) de un movimiento sobre cada cuenta.
 const getDelta = (type: TransactionType, target: TargetType, value: number, splitConfig: AppState['splitConfig']): Balances => {
@@ -42,20 +35,16 @@ const getDelta = (type: TransactionType, target: TargetType, value: number, spli
   return { ahorro: 0, personales: 0, negocio: 0, [account]: -value };
 };
 
-export const useStore = create<StoreState>((set, get) => ({
+export const useStore = create<StoreState>((set) => ({
   ...INITIAL_STATE,
 
   setInitialState: (state) => set(() => state),
 
-  toggleAutoSplit: (val) => set(() => {
-    const newState = { autoSplit: val };
-    DB.saveState({ ...get(), ...newState });
-    return newState;
-  }),
-
   addTransaction: (amount, type, target, description, tags = []) => set((state) => {
     const value = roundMoney(amount);
-    const { ahorro, personales, negocio } = addBalances(state, getDelta(type, target, value, state.splitConfig));
+    if (!(value > 0)) return state;
+    const applied = getDelta(type, target, value, state.splitConfig);
+    const { ahorro, personales, negocio } = addBalances(state, applied);
 
     const newTransaction: Transaction = {
       id: generateId(),
@@ -65,7 +54,8 @@ export const useStore = create<StoreState>((set, get) => ({
       target,
       tags,
       description: description.trim() || undefined,
-      balancesSnapshot: { ahorro, personales, negocio }
+      balancesSnapshot: { ahorro, personales, negocio },
+      applied
     };
 
     const newState = { 
@@ -80,6 +70,7 @@ export const useStore = create<StoreState>((set, get) => ({
   }),
 
   addFixedExpense: (name, value, day, target, tags, isFloating = false) => set((state) => {
+    if (!(value > 0)) return state;
     // El primer mes cobrable es el actual: se marca el anterior como pagado.
     const lastPaidMonthYear = isFloating ? '' : previousMonthKey(new Date());
     const newEx: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear, isFloating };
@@ -89,6 +80,7 @@ export const useStore = create<StoreState>((set, get) => ({
   }),
 
   editFixedExpense: (id, name, value, day, target, tags, isFloating = false) => set((state) => {
+    if (!(value > 0)) return state;
     const newState = {
       fixedExpenses: state.fixedExpenses.map(ex => 
         ex.id !== id ? ex : {
@@ -113,7 +105,8 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!expense) return state;
 
     const value = expense.value;
-    const { ahorro, personales, negocio } = addBalances(state, getDelta('gasto', expense.target, value, state.splitConfig));
+    const applied = getDelta('gasto', expense.target, value, state.splitConfig);
+    const { ahorro, personales, negocio } = addBalances(state, applied);
 
     const newT: Transaction = {
       id: generateId(),
@@ -123,7 +116,8 @@ export const useStore = create<StoreState>((set, get) => ({
       target: expense.target,
       tags: expense.tags && expense.tags.length > 0 ? expense.tags : ['flotante'],
       description: `[EJECUTADO] ${expense.name}`,
-      balancesSnapshot: { ahorro, personales, negocio }
+      balancesSnapshot: { ahorro, personales, negocio },
+      applied
     };
 
     const newState = {
@@ -153,7 +147,8 @@ export const useStore = create<StoreState>((set, get) => ({
     // Se aplican en orden cronológico para que cada balancesSnapshot sea consistente.
     for (const { expense: ex, year, month, date } of charges) {
       const paidMY = monthKey(year, month);
-      balances = addBalances(balances, getDelta('gasto', ex.target, ex.value, state.splitConfig));
+      const applied = getDelta('gasto', ex.target, ex.value, state.splitConfig);
+      balances = addBalances(balances, applied);
 
       const newT: Transaction = {
         id: generateId(),
@@ -163,7 +158,8 @@ export const useStore = create<StoreState>((set, get) => ({
         target: ex.target,
         tags: ex.tags && ex.tags.length > 0 ? ex.tags : ['gasto_fijo'],
         description: paidMY === currentMY ? `[FIJO] ${ex.name}` : `[FIJO] ${ex.name} (atrasado ${month + 1}/${year})`,
-        balancesSnapshot: balances
+        balancesSnapshot: balances,
+        applied
       };
       newHistory = [newT, ...newHistory];
       paidMonths[ex.id] = paidMY;
@@ -185,9 +181,11 @@ export const useStore = create<StoreState>((set, get) => ({
 
     const last = state.history[0];
     const prevSnapshot = state.history[1]?.balancesSnapshot;
+    // Sin saldos previos registrados se revierte el efecto aplicado; los movimientos antiguos
+    // sin 'applied' se recalculan con el split actual.
     const balances = prevSnapshot
       ? { ahorro: prevSnapshot.ahorro, personales: prevSnapshot.personales, negocio: prevSnapshot.negocio }
-      : addBalances(state, getDelta(last.type, last.target, last.value, state.splitConfig), -1);
+      : addBalances(state, last.applied ?? getDelta(last.type, last.target, last.value, state.splitConfig), -1);
 
     const newState = {
         ...balances,
@@ -204,7 +202,7 @@ export const useStore = create<StoreState>((set, get) => ({
   }),
 
   resetState: () => {
-    DB.saveState(INITIAL_STATE);
-    set(() => INITIAL_STATE);
+    DB.saveState(EMPTY_STATE);
+    set(() => EMPTY_STATE);
   }
 }));

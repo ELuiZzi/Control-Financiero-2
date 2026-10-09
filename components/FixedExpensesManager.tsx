@@ -22,11 +22,12 @@ export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expe
 
   const now = new Date();
   const today = now.getDate();
+  const currentMY = `${now.getMonth()}-${now.getFullYear()}`;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numericVal = parseFloat(val.toString().replace(/[^0-9.-]+/g, ""));
-    if (!name || isNaN(numericVal) || numericVal === 0) return;
+    if (!name.trim() || !isFinite(numericVal) || numericVal <= 0) return;
 
     const tagsArray = tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== '');
 
@@ -105,15 +106,18 @@ export const FixedExpensesManager: React.FC<FixedExpensesManagerProps> = ({ expe
                 {expenses.map(ex => {
                     const daysLeft = effectiveDueDay(ex.day, now.getFullYear(), now.getMonth()) - today;
                     let alertClass = "text-emerald-500 bg-emerald-50";
-                    let statusText = `Faltan ${daysLeft} días`;
+                    let statusText = daysLeft === 1 ? 'Falta 1 día' : `Faltan ${daysLeft} días`;
 
                     if (ex.isFloating) {
                         alertClass = "text-indigo-600 bg-indigo-50 font-bold";
                         statusText = "Pendiente (Flotante)";
-                    } else if (daysLeft < 0) {
+                    } else if (ex.lastPaidMonthYear === currentMY) {
                         alertClass = "text-gray-500 bg-gray-100";
-                        statusText = "Ya procesado";
-                    } else if (daysLeft >= 0 && daysLeft <= 3) {
+                        statusText = "Pagado este mes";
+                    } else if (daysLeft <= 0) {
+                        alertClass = "text-red-600 bg-red-50 font-bold";
+                        statusText = "Se cobra hoy";
+                    } else if (daysLeft <= 3) {
                         alertClass = "text-red-600 bg-red-50 font-bold";
                     }
 

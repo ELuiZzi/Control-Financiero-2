@@ -17,7 +17,8 @@ export interface Transaction {
   target: TargetType;
   tags: string[]; // Nuevo: Vector para sub-categorías (ej. ['suscripcion', 'software'])
   description?: string;
-  balancesSnapshot: Balances; 
+  balancesSnapshot?: Balances; // Saldos tras el movimiento (puede faltar en respaldos antiguos)
+  applied?: Balances; // Efecto exacto aplicado a cada cuenta, para deshacerlo sin recalcular el split
 }
 
 export interface FixedExpense {
@@ -43,7 +44,6 @@ export interface SplitConfig {
 }
 
 export interface AppState extends Balances {
-  autoSplit: boolean;
   history: Transaction[];
   fixedExpenses: FixedExpense[];
   splitConfig?: SplitConfig; // Opcional por compatibilidad hacia atrás

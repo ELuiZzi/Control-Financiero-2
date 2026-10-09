@@ -79,7 +79,11 @@ export const DataManagement: React.FC<DataManagementProps> = ({
                 <label className="flex items-center justify-center gap-2 p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-gray-700">
                     <IconUpload className="w-5 h-5" />
                     <span className="text-sm font-medium">Restaurar desde Archivo</span>
-                    <input type="file" accept="application/json" onChange={e => e.target.files && onImportFile(e.target.files[0])} className="hidden" />
+                    <input type="file" accept="application/json" onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) onImportFile(file);
+                        e.target.value = ''; // permite volver a elegir el mismo archivo
+                    }} className="hidden" />
                 </label>
             </div>
           </section>
@@ -141,7 +145,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
           </section>
 
           <section className="pt-4 border-t border-gray-100">
-              <button onClick={() => { if(confirm("¿Estás seguro de reiniciar todos los valores a 0?")) onReset() }} className="w-full py-3 rounded-xl text-red-500 text-xs font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
+              <button onClick={() => { if(confirm("¿Reiniciar todo a 0? Se borrarán saldos, historial y gastos programados (los puntos de restauración se conservan).")) onReset() }} className="w-full py-3 rounded-xl text-red-500 text-xs font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
                  <IconRefresh className="w-3 h-3" />
                  Reiniciar Fábrica
               </button>

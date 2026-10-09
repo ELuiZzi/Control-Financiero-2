@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Snapshot, TransactionType, TargetType } from './types';
+import { AppState, Snapshot } from './types';
 import { INITIAL_STATE } from './constants';
 import { DB } from './db';
 import { useStore } from './store';
+import { normalizeState } from './normalize';
+import { generateId } from './utils';
 import { BalanceCard } from './components/BalanceCard';
 import { TransactionForm } from './components/TransactionForm';
 import { HistoryList } from './components/HistoryList';
@@ -13,23 +15,16 @@ import { PredictiveDashboard } from './components/PredictiveDashboard';
 import { SettingsModal } from './components/SettingsModal';
 import { PortfolioChart } from './components/PortfolioChart';
 
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    try { return crypto.randomUUID(); } catch (e) {}
-  }
-  return Date.now().toString(36) + Math.random().toString(36).substring(2);
-};
-
 function App() {
   const store = useStore();
   const { 
-    ahorro, personales, negocio, autoSplit, history, fixedExpenses,
-    setInitialState, toggleAutoSplit, addTransaction, addFixedExpense, editFixedExpense, 
-    deleteFixedExpense, processFloatingExpense, processFixedExpensesForToday, undoLastTransaction, resetState 
+    ahorro, personales, negocio, history, fixedExpenses, splitConfig,
+    setInitialState, addTransaction, processFixedExpensesForToday, undoLastTransaction, resetState 
   } = store;
 
-  // Derive state for components that need the AppState object
-  const state = { ahorro, personales, negocio, autoSplit, history, fixedExpenses };
+  // Derive state for components that need the AppState object (incluye splitConfig para respaldos)
+  const state: AppState = { ahorro, personales, negocio, history, fixedExpenses, splitConfig };
+  const currentSplit = () => useStore.getState().splitConfig || INITIAL_STATE.splitConfig!;
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,31 +32,27 @@ function App() {
 
   useEffect(() => {
     const initData = async () => {
-      let loadedState = await DB.loadState();
-      
-      if (loadedState.inversion !== undefined && loadedState.negocio === undefined) {
-         loadedState.negocio = loadedState.inversion;
-         delete loadedState.inversion;
-      }
-      
-      loadedState.ahorro = Number(loadedState.ahorro) || 0;
-      loadedState.personales = Number(loadedState.personales) || 0;
-      loadedState.negocio = Number(loadedState.negocio) || 0;
-      loadedState.history = loadedState.history || [];
-      loadedState.fixedExpenses = loadedState.fixedExpenses || [];
-      
-      setInitialState(loadedState);
+      const loaded = normalizeState(await DB.loadState(), INITIAL_STATE.splitConfig!);
+      if (loaded && loaded.skipped > 0) console.warn(`Se descartaron ${loaded.skipped} registros inválidos al cargar`);
+      setInitialState(loaded ? loaded.state : INITIAL_STATE);
       setSnapshots(await DB.loadSnapshots());
       setIsLoading(false);
     };
     initData();
   }, [setInitialState]);
 
+  // Cobra los gastos fijos vencidos al cargar, al cambiar la lista, al volver a la app y cada minuto
   useEffect(() => {
-    if (!isLoading) {
-      processFixedExpensesForToday();
-    }
-  }, [isLoading, processFixedExpensesForToday]);
+    if (isLoading) return;
+    processFixedExpensesForToday();
+    const onVisible = () => { if (document.visibilityState === 'visible') processFixedExpensesForToday(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = window.setInterval(processFixedExpensesForToday, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(timer);
+    };
+  }, [isLoading, fixedExpenses, processFixedExpensesForToday]);
 
   // Persistir los puntos de restauración (solo después de la carga inicial para no sobrescribirlos)
   useEffect(() => {
@@ -80,8 +71,10 @@ function App() {
   };
   
   const importSnapshot = (snap: Snapshot) => {
-    setInitialState(snap.state);
-    DB.saveState(useStore.getState());
+    const restored = normalizeState(snap.state, currentSplit());
+    if (!restored) return alert("El punto de restauración está dañado y no se puede aplicar.");
+    setInitialState(restored.state);
+    DB.saveState(restored.state);
   };
   
   const deleteSnapshot = (id: string) => setSnapshots(prev => prev.filter(s => s.id !== id));
@@ -90,27 +83,15 @@ function App() {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const parsed = JSON.parse(e.target?.result as string);
-        if (parsed && typeof parsed === "object" && 'ahorro' in parsed) {
-          if ('inversion' in parsed) {
-             parsed.negocio = parsed.inversion;
-             delete parsed.inversion;
-          }
-          if (Array.isArray(parsed.history)) {
-             parsed.history = parsed.history.map((t: any) => ({
-                 ...t, target: t.target === 'inversion' ? 'negocio' : t.target, tags: t.tags || []
-             }));
-          }
-          if (Array.isArray(parsed.fixedExpenses)) {
-             parsed.fixedExpenses = parsed.fixedExpenses.map((ex: any) => ({
-                 ...ex, target: ex.target === 'inversion' ? 'negocio' : ex.target, tags: ex.tags || []
-             }));
-          }
-          if (window.confirm("¿Migrar y sobrescribir los datos locales con el respaldo?")) {
-              setInitialState(parsed);
-              DB.saveState(parsed);
-          }
-        } else alert("Archivo corrupto o formato no válido para el sistema.");
+        const imported = normalizeState(JSON.parse(e.target?.result as string), currentSplit());
+        if (!imported) return alert("Archivo corrupto o formato no válido para el sistema.");
+
+        const { state: next, skipped } = imported;
+        const warning = skipped > 0 ? `\n\n⚠️ Se descartarán ${skipped} registros inválidos del respaldo.` : '';
+        if (window.confirm(`¿Migrar y sobrescribir los datos locales con el respaldo?${warning}`)) {
+            setInitialState(next);
+            DB.saveState(next);
+        }
       } catch (err: any) { alert("Fallo crítico en la lectura: " + err.message); }
     };
     reader.readAsText(file);
@@ -126,8 +107,6 @@ function App() {
         <div className="mb-8">
             <TransactionForm 
                 onAdd={addTransaction}
-                autoSplit={autoSplit}
-                onToggleAutoSplit={toggleAutoSplit}
                 history={history} 
             />
         </div>

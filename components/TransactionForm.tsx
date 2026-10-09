@@ -3,17 +3,16 @@ import { TargetType, TransactionType, Transaction } from '../types';
 
 interface TransactionFormProps {
   onAdd: (amount: number, type: TransactionType, target: TargetType, description: string, tags: string[]) => void;
-  autoSplit: boolean;
-  onToggleAutoSplit: (val: boolean) => void;
   history: Transaction[];
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSplit, onToggleAutoSplit, history }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, history }) => {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>('ingreso');
   const [target, setTarget] = useState<TargetType>('auto_producto');
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   // Algoritmo de Minería de Etiquetas y Frecuencia (Deep Scan 2.0)
   const dynamicQuickTags = useMemo(() => {
@@ -67,7 +66,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const raw = parseFloat(amount.replace(/[^0-9.-]+/g, ""));
-    if (!isFinite(raw) || raw === 0) return;
+    if (!isFinite(raw) || raw <= 0) {
+      setError('Ingresa un monto mayor a 0. Para salidas usa "Gasto (-)".');
+      return;
+    }
+    setError(null);
 
     const finalDescription = description.trim() || selectedTags.join(', ') || 'Movimiento Operativo';
 
@@ -101,7 +104,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, autoSpl
 
       <div className="mb-5 relative">
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">$</span>
-        <input type="text" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-4xl font-black rounded-2xl py-4 pl-10 pr-4 focus:ring-2 focus:ring-brand-500 outline-none transition-all placeholder:text-gray-300 tracking-tighter" />
+        <input type="text" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setError(null); }} placeholder="0.00" className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-4xl font-black rounded-2xl py-4 pl-10 pr-4 focus:ring-2 focus:ring-brand-500 outline-none transition-all placeholder:text-gray-300 tracking-tighter" />
+        {error && <p className="text-xs font-bold text-red-500 mt-2 ml-1">{error}</p>}
       </div>
 
       <div className="mb-5">
