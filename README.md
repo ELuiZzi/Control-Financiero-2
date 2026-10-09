@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Finance Flow (Lumtech)
 
-# Run and deploy your AI Studio app
+PWA de control financiero personal y de negocio. Todo se guarda en el navegador (IndexedDB vía localforage); no hay servidor.
 
-This contains everything you need to run your app locally.
+## Funciones
 
-View your app in AI Studio: https://ai.studio/apps/drive/1uuL7xb7-Kdtt5tsh38EESxrCTMqnxKGm
+- Tres cuentas: **Reserva (ahorro)**, **Personales** y **Lumtech (negocio)**.
+- Ingresos con reparto automático configurable para productos y servicios (se reparte en centavos exactos).
+- Gastos fijos mensuales, que se cobran solos (incluidos los meses atrasados), y gastos flotantes, que se pagan a mano.
+- Resumen mensual, auditoría por etiquetas e historial con opción de deshacer.
+- Respaldos en archivo JSON y puntos de restauración dentro del navegador.
+- Funciona sin conexión una vez cargada (service worker solo en producción).
 
-## Run Locally
+## Desarrollo
 
-**Prerequisites:**  Node.js
+Requisitos: Node.js 20+
 
+```bash
+npm install
+npm run dev        # servidor de desarrollo en http://localhost:3000
+npm run typecheck  # revisión de tipos
+npm run build      # revisión de tipos + build de producción en dist/
+npm run preview    # sirve dist/ (para probar la PWA y el modo offline)
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Estructura
+
+| Archivo | Contenido |
+| --- | --- |
+| `store.ts` | Estado global (zustand) y todas las operaciones sobre saldos |
+| `finance.ts` | Reparto en centavos y cálculo de gastos fijos vencidos |
+| `normalize.ts` | Validación de respaldos, puntos de restauración y datos antiguos |
+| `db.ts` | Persistencia en IndexedDB |
+| `public/sw.js` | Service worker (caché offline) |
+| `components/` | Interfaz |

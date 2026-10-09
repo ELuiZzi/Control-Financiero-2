@@ -20,9 +20,10 @@ export const MonthlyStats: React.FC<MonthlyStatsProps> = ({ history }) => {
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     years.add(new Date().getFullYear());
+    years.add(selectedYear); // al navegar con las flechas a un año sin movimientos
     history.forEach(t => years.add(new Date(t.date).getFullYear()));
     return Array.from(years).sort((a, b) => b - a);
-  }, [history]);
+  }, [history, selectedYear]);
 
   const stats = useMemo(() => {
     let income = 0;

@@ -3,7 +3,9 @@ import CryptoJS from 'crypto-js';
 import { AppState, Snapshot } from './types';
 import { STORAGE_KEY, SNAPSHOT_KEY, INITIAL_STATE } from './constants';
 
-const SECRET_KEY = 'finance_flow_secure_key_v1'; // Clave de encriptación interna
+// OJO: la clave viaja dentro del propio bundle, así que esto solo ofusca los datos en el
+// dispositivo; no protege frente a quien tenga acceso al navegador.
+const SECRET_KEY = 'finance_flow_secure_key_v1';
 
 localforage.config({
     name: 'FinanceFlowDB',
