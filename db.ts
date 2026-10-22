@@ -1,7 +1,7 @@
 import localforage from 'localforage';
 import CryptoJS from 'crypto-js';
 import { AppState, Snapshot } from './types';
-import { STORAGE_KEY, SNAPSHOT_KEY, INITIAL_STATE } from './constants';
+import { STORAGE_KEY, SNAPSHOT_KEY, CLOUD_LINK_KEY, INITIAL_STATE } from './constants';
 
 // OJO: la clave viaja dentro del propio bundle, así que esto solo ofusca los datos en el
 // dispositivo; no protege frente a quien tenga acceso al navegador.
@@ -55,6 +55,28 @@ export const DB = {
         } catch (error) {
             console.error("Error guardando el flujo de capital:", error);
         }
+    },
+
+    // ¿Hay datos guardados en este dispositivo? (loadState devuelve valores por defecto si no)
+    hasState: async (): Promise<boolean> => {
+        try {
+            return Boolean(await localforage.getItem(STORAGE_KEY));
+        } catch {
+            return false;
+        }
+    },
+
+    getCloudLink: async (): Promise<string | null> => {
+        try {
+            return await localforage.getItem<string>(CLOUD_LINK_KEY);
+        } catch {
+            return null;
+        }
+    },
+
+    setCloudLink: async (uid: string | null): Promise<void> => {
+        if (uid) await localforage.setItem(CLOUD_LINK_KEY, uid);
+        else await localforage.removeItem(CLOUD_LINK_KEY);
     },
 
     loadSnapshots: async (): Promise<Snapshot[]> => {

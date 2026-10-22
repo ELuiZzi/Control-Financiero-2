@@ -20,7 +20,11 @@ const toTarget = (v: unknown): TargetType | null => {
 const toTags = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string') : [];
 
-const toId = (v: unknown) => (typeof v === 'string' && v ? v : generateId());
+// Ids válidos también como documento de Firestore (sin "/", ni "." / ".." ni "__x__")
+const toId = (v: unknown) =>
+  typeof v === 'string' && v && v.length <= 500 && !v.includes('/') && v !== '.' && v !== '..' && !/^__.*__$/.test(v)
+    ? v
+    : generateId();
 
 const toBalances = (v: any): Balances | null => {
   if (!v || typeof v !== 'object') return null;

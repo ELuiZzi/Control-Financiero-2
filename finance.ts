@@ -1,6 +1,20 @@
-import { Balances, FixedExpense, SplitPercentages } from './types';
+import { AppState, Balances, FixedExpense, SplitPercentages, TargetType, TransactionType } from './types';
+import { INITIAL_STATE } from './constants';
 
 export const roundMoney = (v: number) => Math.round(v * 100) / 100;
+
+export const ZERO_BALANCES: Balances = { ahorro: 0, personales: 0, negocio: 0 };
+
+// Suma exacta de saldos: se opera en centavos enteros para no acumular errores de punto flotante
+export const sumBalances = (items: Balances[]): Balances => {
+  let a = 0, p = 0, n = 0;
+  for (const b of items) {
+    a += Math.round(b.ahorro * 100);
+    p += Math.round(b.personales * 100);
+    n += Math.round(b.negocio * 100);
+  }
+  return { ahorro: a / 100, personales: p / 100, negocio: n / 100 };
+};
 
 const ACCOUNTS = ['ahorro', 'personales', 'negocio'] as const;
 
@@ -27,6 +41,21 @@ export const addBalances = (a: Balances, b: Balances, sign: 1 | -1 = 1): Balance
   personales: roundMoney(a.personales + sign * b.personales),
   negocio: roundMoney(a.negocio + sign * b.negocio),
 });
+
+// Efecto (con signo) de un movimiento sobre cada cuenta.
+export const getDelta = (type: TransactionType, target: TargetType, value: number, splitConfig: AppState['splitConfig']): Balances => {
+  if (type === 'ingreso' && (target === 'ahorro' || target === 'personales' || target === 'negocio')) {
+    return { ...ZERO_BALANCES, [target]: value };
+  }
+  if (type === 'ingreso') {
+    const cfg = target === 'auto_servicio'
+      ? splitConfig?.servicio || INITIAL_STATE.splitConfig!.servicio
+      : splitConfig?.producto || INITIAL_STATE.splitConfig!.producto;
+    return splitAmount(value, cfg);
+  }
+  const account = target === 'ahorro' || target === 'negocio' ? target : 'personales';
+  return { ...ZERO_BALANCES, [account]: -value };
+};
 
 export const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 

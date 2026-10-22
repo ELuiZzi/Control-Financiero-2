@@ -19,6 +19,7 @@ export interface Transaction {
   description?: string;
   balancesSnapshot?: Balances; // Saldos tras el movimiento (puede faltar en respaldos antiguos)
   applied?: Balances; // Efecto exacto aplicado a cada cuenta, para deshacerlo sin recalcular el split
+  order?: number; // Orden de registro (más alto = más reciente); la fecha puede ser retroactiva
 }
 
 export interface FixedExpense {
