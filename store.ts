@@ -1,12 +1,14 @@
 import { create } from 'zustand';
-import { AppState, Balances, Transaction, TransactionType, TargetType, FixedExpense } from './types';
-import { INITIAL_STATE, EMPTY_STATE } from './constants';
-import { DB } from './db';
-import { addBalances, getDueCharges, monthKey, previousMonthKey, roundMoney, splitAmount } from './finance';
+import { AppState, Balances, TransactionType, TargetType, FixedExpense, SplitConfig } from './types';
+import { INITIAL_STATE } from './constants';
+import { addBalances, getDelta, getDueCharges, monthKey, previousMonthKey, roundMoney } from './finance';
+import { applyOps, emptyLedger, Ledger, LedgerOp, LedgerTransaction, ledgerFromState, stateFromLedger } from './ledger';
+import { Repo, SyncStatus } from './repo';
 import { generateId } from './utils';
 
 interface Actions {
-  setInitialState: (state: AppState) => void;
+  connect: (repo: Repo) => () => void;
+  replaceState: (state: AppState) => void;
   addTransaction: (amount: number, type: TransactionType, target: TargetType, description: string, tags?: string[]) => void;
   addFixedExpense: (name: string, value: number, day: number, target: TargetType, tags: string[], isFloating?: boolean) => void;
   editFixedExpense: (id: string, name: string, value: number, day: number, target: TargetType, tags: string[], isFloating?: boolean) => void;
@@ -18,191 +20,161 @@ interface Actions {
   resetState: () => void;
 }
 
-type StoreState = AppState & Actions;
-
-// Efecto (con signo) de un movimiento sobre cada cuenta.
-const getDelta = (type: TransactionType, target: TargetType, value: number, splitConfig: AppState['splitConfig']): Balances => {
-  if (type === 'ingreso' && (target === 'ahorro' || target === 'personales' || target === 'negocio')) {
-    return { ahorro: 0, personales: 0, negocio: 0, [target]: value };
-  }
-  if (type === 'ingreso') {
-    const cfg = target === 'auto_servicio'
-      ? splitConfig?.servicio || INITIAL_STATE.splitConfig!.servicio
-      : splitConfig?.producto || INITIAL_STATE.splitConfig!.producto;
-    return splitAmount(value, cfg);
-  }
-  const account = target === 'ahorro' || target === 'negocio' ? target : 'personales';
-  return { ahorro: 0, personales: 0, negocio: 0, [account]: -value };
+type StoreState = AppState & Actions & {
+  ledger: Ledger;
+  sync: SyncStatus | null;
 };
 
-export const useStore = create<StoreState>((set) => ({
-  ...INITIAL_STATE,
+let repo: Repo | null = null;
 
-  setInitialState: (state) => set(() => state),
+const initialLedger = ledgerFromState(INITIAL_STATE);
 
-  addTransaction: (amount, type, target, description, tags = []) => set((state) => {
-    const value = roundMoney(amount);
-    if (!(value > 0)) return state;
-    const applied = getDelta(type, target, value, state.splitConfig);
-    const { ahorro, personales, negocio } = addBalances(state, applied);
+export const useStore = create<StoreState>((set, get) => {
+  const setLedger = (ledger: Ledger) => set({ ledger, ...stateFromLedger(ledger) });
 
-    const newTransaction: Transaction = {
-      id: generateId(),
-      date: new Date().toISOString(),
-      type,
-      value,
-      target,
-      tags,
-      description: description.trim() || undefined,
-      balancesSnapshot: { ahorro, personales, negocio },
-      applied
-    };
+  // Aplica los cambios al instante en pantalla y los manda al almacenamiento activo
+  const commit = (ops: LedgerOp[]) => {
+    if (ops.length === 0) return;
+    setLedger(applyOps(get().ledger, ops));
+    repo?.apply(ops);
+  };
 
-    const newState = { 
-      ahorro, 
-      personales, 
-      negocio, 
-      history: [newTransaction, ...state.history] 
-    };
-    
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+  const newTx = (fields: Omit<LedgerTransaction, 'balancesSnapshot' | 'order'>, balancesAfter: Balances, order = Date.now()): LedgerTransaction => ({
+    ...fields,
+    balancesSnapshot: balancesAfter,
+    order,
+  });
 
-  addFixedExpense: (name, value, day, target, tags, isFloating = false) => set((state) => {
-    if (!(value > 0)) return state;
-    // El primer mes cobrable es el actual: se marca el anterior como pagado.
-    const lastPaidMonthYear = isFloating ? '' : previousMonthKey(new Date());
-    const newEx: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear, isFloating };
-    const newState = { fixedExpenses: [...state.fixedExpenses, newEx] };
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+  const splitConfig = () => get().ledger.splitConfig;
 
-  editFixedExpense: (id, name, value, day, target, tags, isFloating = false) => set((state) => {
-    if (!(value > 0)) return state;
-    const newState = {
-      fixedExpenses: state.fixedExpenses.map(ex => 
-        ex.id !== id ? ex : {
+  return {
+    ...stateFromLedger(initialLedger),
+    ledger: initialLedger,
+    sync: null,
+
+    connect: (r) => {
+      repo = r;
+      const unsubscribe = r.subscribe(setLedger, sync => set({ sync }));
+      return () => {
+        unsubscribe();
+        if (repo === r) repo = null;
+      };
+    },
+
+    // Importar respaldo, restaurar un punto o migrar: reemplaza todo conservando los saldos exactos
+    replaceState: (state) => commit([{ kind: 'replace', ledger: ledgerFromState(state) }]),
+
+    addTransaction: (amount, type, target, description, tags = []) => {
+      const value = roundMoney(amount);
+      if (!(value > 0)) return;
+      const applied = getDelta(type, target, value, splitConfig());
+      const tx = newTx({
+        id: generateId(),
+        date: new Date().toISOString(),
+        type,
+        value,
+        target,
+        tags,
+        description: description.trim() || undefined,
+        applied,
+      }, addBalances(get(), applied));
+      commit([{ kind: 'putTx', tx }]);
+    },
+
+    addFixedExpense: (name, value, day, target, tags, isFloating = false) => {
+      if (!(value > 0)) return;
+      // El primer mes cobrable es el actual: se marca el anterior como pagado.
+      const lastPaidMonthYear = isFloating ? '' : previousMonthKey(new Date());
+      const expense: FixedExpense = { id: generateId(), name, value, day, target, tags, lastPaidMonthYear, isFloating };
+      commit([{ kind: 'putFixed', expense }]);
+    },
+
+    editFixedExpense: (id, name, value, day, target, tags, isFloating = false) => {
+      if (!(value > 0)) return;
+      const ex = get().fixedExpenses.find(e => e.id === id);
+      if (!ex) return;
+      commit([{
+        kind: 'putFixed',
+        expense: {
           ...ex, name, value, day, target, tags, isFloating,
           // Un flotante convertido en fijo empieza a cobrarse este mes, sin meses atrasados.
           lastPaidMonthYear: ex.isFloating && !isFloating ? previousMonthKey(new Date()) : ex.lastPaidMonthYear
         }
-      )
-    };
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+      }]);
+    },
 
-  deleteFixedExpense: (id) => set((state) => {
-    const newState = { fixedExpenses: state.fixedExpenses.filter(e => e.id !== id) };
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+    deleteFixedExpense: (id) => commit([{ kind: 'deleteFixed', id }]),
 
-  processFloatingExpense: (id) => set((state) => {
-    const expense = state.fixedExpenses.find(e => e.id === id);
-    if (!expense) return state;
-
-    const value = expense.value;
-    const applied = getDelta('gasto', expense.target, value, state.splitConfig);
-    const { ahorro, personales, negocio } = addBalances(state, applied);
-
-    const newT: Transaction = {
-      id: generateId(),
-      date: new Date().toISOString(),
-      type: 'gasto', 
-      value, 
-      target: expense.target,
-      tags: expense.tags && expense.tags.length > 0 ? expense.tags : ['flotante'],
-      description: `[EJECUTADO] ${expense.name}`,
-      balancesSnapshot: { ahorro, personales, negocio },
-      applied
-    };
-
-    const newState = {
-      ahorro,
-      personales,
-      negocio,
-      history: [newT, ...state.history],
-      fixedExpenses: state.fixedExpenses.filter(e => e.id !== id)
-    };
-    
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
-
-  processFixedExpensesForToday: () => set((state) => {
-    if (!state.fixedExpenses || state.fixedExpenses.length === 0) return state;
-
-    const now = new Date();
-    const charges = getDueCharges(state.fixedExpenses, now);
-    if (charges.length === 0) return state;
-
-    const currentMY = monthKey(now.getFullYear(), now.getMonth());
-    let balances: Balances = { ahorro: state.ahorro, personales: state.personales, negocio: state.negocio };
-    let newHistory = [...state.history];
-    const paidMonths: Record<string, string> = {};
-
-    // Se aplican en orden cronológico para que cada balancesSnapshot sea consistente.
-    for (const { expense: ex, year, month, date } of charges) {
-      const paidMY = monthKey(year, month);
-      const applied = getDelta('gasto', ex.target, ex.value, state.splitConfig);
-      balances = addBalances(balances, applied);
-
-      const newT: Transaction = {
-        id: generateId(),
-        date: date.toISOString(),
+    processFloatingExpense: (id) => {
+      const expense = get().fixedExpenses.find(e => e.id === id);
+      if (!expense) return;
+      const applied = getDelta('gasto', expense.target, expense.value, splitConfig());
+      const tx = newTx({
+        // id fijo: si dos dispositivos lo pagan a la vez, cuenta una sola vez
+        id: `float_${expense.id}`,
+        date: new Date().toISOString(),
         type: 'gasto',
-        value: ex.value,
-        target: ex.target,
-        tags: ex.tags && ex.tags.length > 0 ? ex.tags : ['gasto_fijo'],
-        description: paidMY === currentMY ? `[FIJO] ${ex.name}` : `[FIJO] ${ex.name} (atrasado ${month + 1}/${year})`,
-        balancesSnapshot: balances,
-        applied
-      };
-      newHistory = [newT, ...newHistory];
-      paidMonths[ex.id] = paidMY;
-    }
+        value: expense.value,
+        target: expense.target,
+        tags: expense.tags && expense.tags.length > 0 ? expense.tags : ['flotante'],
+        description: `[EJECUTADO] ${expense.name}`,
+        applied,
+      }, addBalances(get(), applied));
+      commit([{ kind: 'putTx', tx }, { kind: 'deleteFixed', id }]);
+    },
 
-    const newState = {
-      ...balances,
-      history: newHistory,
-      fixedExpenses: state.fixedExpenses.map(ex =>
-        paidMonths[ex.id] ? { ...ex, lastPaidMonthYear: paidMonths[ex.id] } : ex
-      )
-    };
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+    processFixedExpensesForToday: () => {
+      const { fixedExpenses } = get();
+      if (!fixedExpenses || fixedExpenses.length === 0) return;
 
-  undoLastTransaction: () => set((state) => {
-    if (state.history.length === 0) return state;
+      const now = new Date();
+      const charges = getDueCharges(fixedExpenses, now);
+      if (charges.length === 0) return;
 
-    const last = state.history[0];
-    const prevSnapshot = state.history[1]?.balancesSnapshot;
-    // Sin saldos previos registrados se revierte el efecto aplicado; los movimientos antiguos
-    // sin 'applied' se recalculan con el split actual.
-    const balances = prevSnapshot
-      ? { ahorro: prevSnapshot.ahorro, personales: prevSnapshot.personales, negocio: prevSnapshot.negocio }
-      : addBalances(state, last.applied ?? getDelta(last.type, last.target, last.value, state.splitConfig), -1);
+      const currentMY = monthKey(now.getFullYear(), now.getMonth());
+      let balances: Balances = { ahorro: get().ahorro, personales: get().personales, negocio: get().negocio };
+      const ops: LedgerOp[] = [];
+      const paidMonths: Record<string, string> = {};
+      const baseOrder = Date.now();
 
-    const newState = {
-        ...balances,
-        history: state.history.slice(1)
-    };
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+      // Se aplican en orden cronológico para que cada balancesSnapshot sea consistente.
+      charges.forEach(({ expense: ex, year, month, date }, i) => {
+        const paidMY = monthKey(year, month);
+        const applied = getDelta('gasto', ex.target, ex.value, splitConfig());
+        balances = addBalances(balances, applied);
+        ops.push({
+          kind: 'putTx',
+          tx: newTx({
+            // id fijo por gasto y mes: el mismo cargo nunca se registra dos veces
+            id: `fixed_${ex.id}_${year}_${month + 1}`,
+            date: date.toISOString(),
+            type: 'gasto',
+            value: ex.value,
+            target: ex.target,
+            tags: ex.tags && ex.tags.length > 0 ? ex.tags : ['gasto_fijo'],
+            description: paidMY === currentMY ? `[FIJO] ${ex.name}` : `[FIJO] ${ex.name} (atrasado ${month + 1}/${year})`,
+            applied,
+          }, balances, baseOrder + i),
+        });
+        paidMonths[ex.id] = paidMY;
+      });
 
-  updateSplitConfig: (config) => set((state) => {
-    const newState = { splitConfig: config };
-    DB.saveState({ ...state, ...newState });
-    return newState;
-  }),
+      fixedExpenses.forEach(ex => {
+        if (paidMonths[ex.id]) ops.push({ kind: 'putFixed', expense: { ...ex, lastPaidMonthYear: paidMonths[ex.id] } });
+      });
+      commit(ops);
+    },
 
-  resetState: () => {
-    DB.saveState(EMPTY_STATE);
-    set(() => EMPTY_STATE);
-  }
-}));
+    // Como los saldos se derivan del historial, deshacer es simplemente quitar el último movimiento
+    undoLastTransaction: () => {
+      const last = get().history[0];
+      if (last) commit([{ kind: 'deleteTx', id: last.id }]);
+    },
+
+    updateSplitConfig: (config) => {
+      if (config) commit([{ kind: 'setSplit', splitConfig: config as SplitConfig }]);
+    },
+
+    resetState: () => commit([{ kind: 'replace', ledger: emptyLedger() }]),
+  };
+});

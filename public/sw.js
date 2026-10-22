@@ -1,13 +1,20 @@
-const CACHE_NAME = 'finance-flow-v6-lumtech';
+const CACHE_NAME = 'finance-flow-v7-lumtech';
 const INDEX_URL = new URL('./index.html', self.location).href;
 const HASHED_ASSET = /\/assets\/[^/]+$/;
+// Únicos recursos externos que se guardan offline. El resto (Firebase/Google: datos,
+// inicio de sesión) nunca pasa por la caché.
+const CACHEABLE_CROSS_ORIGIN = ['https://cdn.tailwindcss.com', 'https://cdn-icons-png.flaticon.com'];
+const isCacheable = (url) =>
+  url.origin === self.location.origin
+    ? !url.pathname.startsWith('/__/') // flujo de inicio de sesión de Firebase
+    : CACHEABLE_CROSS_ORIGIN.includes(url.origin);
 
 // Recursos referenciados por el HTML (bundle con hash, manifest, Tailwind CDN, íconos)
 const extractShellUrls = (html) => {
   const urls = new Set();
   for (const [, ref] of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
     const url = new URL(ref, self.location);
-    if (url.protocol.startsWith('http')) urls.add(url.href);
+    if (url.protocol.startsWith('http') && isCacheable(url)) urls.add(url.href);
   }
   return [...urls];
 };
@@ -25,9 +32,22 @@ const putInCache = async (request, response) => {
   await cache.put(request, response);
 };
 
-// Guarda todo lo que necesita la versión actual del HTML y borra bundles de versiones anteriores
+// Todos los archivos de la compilación actual, incluidos los que se cargan bajo demanda
+// (p. ej. el módulo de Firebase), según la lista que genera vite.config.ts
+const fetchAssetManifest = async () => {
+  try {
+    const res = await fetch(new URL('./asset-manifest.json', self.location), { cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()).map(f => new URL(f, self.location).href);
+  } catch (err) {
+    return null;
+  }
+};
+
+// Guarda todo lo que necesita la versión actual y borra bundles de versiones anteriores
 const syncShell = async (html) => {
-  const urls = extractShellUrls(html);
+  const manifest = await fetchAssetManifest();
+  const urls = [...new Set([...extractShellUrls(html), ...(manifest || [])])];
   const cache = await caches.open(CACHE_NAME);
   await Promise.allSettled(urls.map(async (url) => {
     const request = toRequest(url);
@@ -35,6 +55,7 @@ const syncShell = async (html) => {
     await putInCache(request, await fetch(request));
   }));
 
+  if (!manifest) return; // sin la lista completa no se borra nada
   const keys = await cache.keys();
   await Promise.all(keys
     .filter(req => HASHED_ASSET.test(new URL(req.url).pathname) && !urls.includes(req.url))
@@ -105,7 +126,7 @@ self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (!url.protocol.startsWith('http')) return;
+  if (!url.protocol.startsWith('http') || !isCacheable(url)) return;
 
   if (request.mode === 'navigate') {
     e.respondWith(handleNavigation(e));

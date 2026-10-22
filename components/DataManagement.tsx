@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AppState, Snapshot } from '../types';
+import { SyncStatus } from '../repo';
 import { IconSave, IconDownload, IconUpload, IconHistory, IconTrash, IconRefresh } from './Icons';
 
 interface DataManagementProps {
@@ -10,6 +11,8 @@ interface DataManagementProps {
   onDeleteSnapshot: (id: string) => void;
   onImportFile: (file: File) => void;
   onReset: () => void;
+  sync?: SyncStatus | null;
+  onSignOut?: () => void;
 }
 
 export const DataManagement: React.FC<DataManagementProps> = ({
@@ -19,7 +22,9 @@ export const DataManagement: React.FC<DataManagementProps> = ({
   onImportSnapshot,
   onDeleteSnapshot,
   onImportFile,
-  onReset
+  onReset,
+  sync,
+  onSignOut
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [snapName, setSnapName] = useState('');
@@ -58,6 +63,24 @@ export const DataManagement: React.FC<DataManagementProps> = ({
       {isOpen && (
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mt-2 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
           
+          {sync?.mode === 'cloud' && (
+            <>
+              <section>
+                <h4 className="text-sm font-bold text-gray-900 mb-2">Cuenta en la nube</h4>
+                <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                  Tus datos se guardan automáticamente en tu cuenta{sync.email ? <> <b>{sync.email}</b></> : ''}.
+                  Si cambias de celular, solo inicia sesión.
+                </p>
+                {onSignOut && (
+                  <button onClick={onSignOut} className="w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+                    Cerrar sesión en este dispositivo
+                  </button>
+                )}
+              </section>
+              <hr className="border-gray-100" />
+            </>
+          )}
+
           {/* File Management (Moved to Top for Priority) */}
           <section>
             <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">

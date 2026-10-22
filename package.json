@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
+    "firebase": "^13.1.0",
     "localforage": "^1.10.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

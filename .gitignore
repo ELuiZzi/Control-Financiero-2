@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .vs/
+
+# Firebase (logs de emuladores)
+firebase-debug.log
+firestore-debug.log
+.firebase/
