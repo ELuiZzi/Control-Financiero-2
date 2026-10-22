@@ -41,9 +41,9 @@ Al configurarla, la app pide iniciar sesión con Google y guarda todo en tu cuen
 
 ## 5. Poner la configuración en la app
 
-- **En el hosting** (recomendado): agrega las 4 variables en la configuración de variables de entorno del
-  sitio (en Netlify: *Site configuration → Environment variables*) y vuelve a desplegar.
-- **En local**: copia `.env.example` como `.env`, llena los valores y ejecuta `npm run dev`.
+La configuración del proyecto `control-financiero-7d38f` ya está en el archivo [`.env`](.env) del
+repositorio, así que Netlify la toma al compilar y `npm run dev` también la usa. Si algún día quieres
+cambiar de proyecto, edita ese archivo (o define las mismas variables en el hosting, que tienen prioridad).
 
 ## 6. Migrar tus datos
 
