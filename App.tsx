@@ -9,12 +9,10 @@ import { emptyLedger, Ledger, LedgerOp, ledgerFromState } from './ledger';
 import { LocalRepo } from './repo';
 import { isCloudConfigured } from './cloudConfig';
 import type { CloudUser } from './cloud';
-import { BalanceCard } from './components/BalanceCard';
 import { TransactionForm } from './components/TransactionForm';
 import { HistoryList } from './components/HistoryList';
 import { DataManagement } from './components/DataManagement';
 import { MonthlyStats } from './components/MonthlyStats';
-import { IconPiggyBank, IconTrendingUp, IconUser } from './components/Icons';
 import { PredictiveDashboard } from './components/PredictiveDashboard';
 import { SettingsModal } from './components/SettingsModal';
 import { PortfolioChart } from './components/PortfolioChart';
@@ -257,30 +255,6 @@ function MainApp({ onSignOut }: { onSignOut?: (pendingWrites: boolean) => void }
                     ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
             </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 mb-8">
-             <BalanceCard 
-                title="Lumtech (Capital de Negocio)" 
-                amount={negocio} 
-                icon={<IconTrendingUp />} 
-                colorClass="bg-gradient-to-br from-blue-600 to-blue-800"
-                percentage={total > 0 ? Math.round((negocio / total) * 100) : 0}
-            />
-             <BalanceCard 
-                title="Operativa Personal" 
-                amount={personales} 
-                icon={<IconUser />} 
-                colorClass="bg-gradient-to-br from-slate-500 to-slate-700"
-                percentage={total > 0 ? Math.round((personales / total) * 100) : 0}
-            />
-            <BalanceCard 
-                title="Reserva Intocable (Ahorro)" 
-                amount={ahorro} 
-                icon={<IconPiggyBank />} 
-                colorClass="bg-gradient-to-br from-emerald-500 to-emerald-700" 
-                percentage={total > 0 ? Math.round((ahorro / total) * 100) : 0}
-            />
         </div>
 
         {/* NIVEL 3: ANÁLISIS TÁCTICO (Control de Fugas y Rendimiento) */}
