@@ -53,9 +53,14 @@ export const getDelta = (type: TransactionType, target: TargetType, value: numbe
       : splitConfig?.producto || INITIAL_STATE.splitConfig!.producto;
     return splitAmount(value, cfg);
   }
-  const account = target === 'ahorro' || target === 'negocio' ? target : 'personales';
-  return { ...ZERO_BALANCES, [account]: -value };
+  return { ...ZERO_BALANCES, [expenseAccount(target)]: -value };
 };
+
+export type Account = keyof Balances;
+
+// Cuenta de la que sale un gasto (los destinos 'auto' de ingresos no aplican: van a personales)
+export const expenseAccount = (target: TargetType): Account =>
+  target === 'ahorro' || target === 'negocio' ? target : 'personales';
 
 export const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 
@@ -105,4 +110,27 @@ export const getDueCharges = (expenses: FixedExpense[], now: Date = new Date()):
   }
 
   return charges.sort((a, b) => a.date.getTime() - b.date.getTime());
+};
+
+export interface PendingCharge {
+  expense: FixedExpense;
+  account: Account;
+  dueDate: Date | null; // null = gasto flotante (sin fecha)
+}
+
+// Pagos aún por descontar este mes: los flotantes siempre, y los fijos cuya fecha de este
+// mes no ha llegado (los ya vencidos se cobran solos y quedan en el historial).
+export const getPendingCharges = (expenses: FixedExpense[], now: Date = new Date()): PendingCharge[] => {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const currentMY = monthKey(year, month);
+  return expenses.flatMap(expense => {
+    const account = expenseAccount(expense.target);
+    if (expense.isFloating) return [{ expense, account, dueDate: null }];
+    const dueDay = effectiveDueDay(expense.day, year, month);
+    if (dueDay >= now.getDate() && expense.lastPaidMonthYear !== currentMY) {
+      return [{ expense, account, dueDate: new Date(year, month, dueDay) }];
+    }
+    return [];
+  });
 };
