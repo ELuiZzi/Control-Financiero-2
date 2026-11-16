@@ -45,12 +45,7 @@ export const PredictiveDashboard: React.FC<PredictiveDashboardProps> = ({ state 
   }, [state, dayKey]);
 
   return (
-    <section className="mb-8" aria-labelledby="neto-division">
-      <div className="flex items-baseline justify-between px-1 mb-3">
-        <h3 id="neto-division" className="text-sm font-bold text-gray-900">Neto por división</h3>
-        <span className="text-xs text-gray-500">Saldo − pagos programados del mes</span>
-      </div>
-
+    <section className="mb-8" aria-label="Neto por división: saldo menos pagos programados del mes">
       <div className="grid grid-cols-1 gap-3">
         {divisions.map(({ account, title, colorClass, Icon, balance, charges, pendingTotal, share, net }) => (
           <details key={account} className={`group rounded-2xl p-4 text-white shadow-lg bg-gradient-to-br ${colorClass} relative overflow-hidden`}>
